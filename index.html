@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GTM Diagnostic Lab</title>
+
+<!-- ==========================================================================
+     CONFIGURATION — the only two blocks you need to edit by hand.
+
+     1. GTM_ID: your sandbox container ID.
+     2. SOP: links to the Slite procedures. Replace '#' with real URLs.
+     ========================================================================== -->
+<script>
+var GTM_ID = 'GTM-XXXXXXX';
+
+var SOP = {
+  autopsy:     '#',   // Run the 60-second trigger autopsy
+  duplicates:  '#',   // Diagnose duplicate firing
+  revenue:     '#',   // Fix the revenue chain
+  stale:       '#',   // Fix a stale-value push
+  isolate:     '#',   // Isolate a suspect (pause / block)
+  environment: '#',   // Environment checks (iframe / SPA)
+  testenv:     '#',   // Verify your test environment
+  platforms:   '#',   // Platform comparison and debug surfaces
+  mailbox:     '#'    // The disconnected dataLayer
+};
+</script>
+
+<!-- GTM snippet -->
+<script>
+window.dataLayer = window.dataLayer || [];
+if (GTM_ID !== 'GTM-XXXXXXX') {
+  (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer',GTM_ID);
+}
+</script>
+
+<!-- Simulated third-party site script: auto-pushes form_submit for every form.
+     Used by the ghost-events demo. Toggle in Demo 6. -->
+<script>
+var AUTO_TRACKER_ON = true;
+document.addEventListener('submit', function(e){
+  if (!AUTO_TRACKER_ON) return;
+  var f = e.target;
+  window.dataLayer.push({
+    event: 'form_submit',
+    form_id: f.id || '',
+    form_submit_text: (f.querySelector('[type=submit]')||{}).value || ''
+  });
+}, true);
+</script>
+
+<style>
+:root { --ink:#1a1a2e; --blue:#4a6fa5; --purple:#7a5ca5; --green:#3d8b5f; --red:#b03a2e; --bg:#f4f6f8; }
+* { box-sizing:border-box; }
+body { font-family:Arial,Helvetica,sans-serif; margin:0; background:var(--bg); color:#222; }
+header { background:var(--ink); color:#fff; padding:20px 28px; }
+header h1 { margin:0; font-size:22px; letter-spacing:.5px; }
+header p { margin:6px 0 0; font-size:13px; color:#aab; max-width:640px; }
+nav { background:#fff; border-bottom:1px solid #ddd; padding:0 28px; }
+nav a { display:inline-block; padding:12px 14px; font-size:13.5px; color:var(--blue); text-decoration:none; border-bottom:3px solid transparent; }
+nav a.active { border-color:var(--blue); font-weight:bold; }
+.wrap { max-width:920px; margin:0 auto; padding:24px 20px 60px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:14px; }
+.symptom { background:#fff; border:1px solid #ddd; border-left:5px solid var(--blue); border-radius:8px; padding:16px; cursor:pointer; transition:box-shadow .15s; }
+.symptom:hover { box-shadow:0 3px 10px rgba(0,0,0,.12); }
+.symptom h3 { margin:0 0 6px; font-size:15.5px; color:var(--ink); }
+.symptom p { margin:0; font-size:12.5px; color:#666; }
+.panel { background:#fff; border:1px solid #ddd; border-radius:10px; padding:20px 22px; margin:14px 0; }
+.panel h2 { margin:0 0 4px; font-size:18px; color:var(--ink); }
+.crumb { font-size:12.5px; color:#888; margin-bottom:14px; }
+.crumb a { color:var(--blue); text-decoration:none; }
+.qtext { font-size:15.5px; font-weight:bold; margin:14px 0 4px; }
+.qhelp { font-size:13px; color:#555; margin:0 0 10px; }
+.qhelp code, .verdict code, .demo code { background:#eef1f6; padding:1px 5px; border-radius:4px; font-size:12.5px; }
+.opt { display:block; width:100%; text-align:left; background:#fff; border:1.5px solid var(--blue); color:var(--blue); border-radius:8px; padding:11px 14px; margin:8px 0; font-size:14px; cursor:pointer; }
+.opt:hover { background:#eef4fb; }
+.verdict { border-left:5px solid var(--green); background:#f4faf6; border-radius:0 8px 8px 0; padding:14px 16px; margin-top:14px; }
+.verdict h4 { margin:0 0 6px; font-size:15px; color:var(--green); }
+.verdict p { font-size:13.5px; margin:6px 0; }
+.verdict ul { margin:6px 0; padding-left:20px; font-size:13.5px; }
+.verdict li { margin:4px 0; }
+.links a { display:inline-block; margin:8px 10px 0 0; font-size:13px; font-weight:bold; color:#fff; background:var(--blue); padding:8px 13px; border-radius:6px; text-decoration:none; }
+.links a.sop { background:var(--purple); }
+.restart { font-size:12.5px; color:var(--blue); cursor:pointer; text-decoration:underline; background:none; border:none; padding:0; margin-top:12px; }
+.demo { background:#fff; border:1px solid #ddd; border-radius:10px; padding:18px 20px; margin:16px 0; }
+.demo h3 { margin:0 0 3px; font-size:16px; color:var(--ink); }
+.demo .tag { font-size:11.5px; color:#fff; background:var(--purple); border-radius:10px; padding:2px 9px; display:inline-block; margin-bottom:8px; }
+.demo p.note { font-size:13px; color:#555; margin:8px 0; }
+button.act { background:var(--blue); color:#fff; border:0; border-radius:6px; padding:9px 14px; margin:4px 6px 4px 0; font-size:13px; cursor:pointer; }
+button.act.bad { background:var(--red); }
+button.act.good { background:var(--green); }
+button.act.plain { background:#666; }
+input[type=text],input[type=email] { padding:8px; border:1px solid #ccc; border-radius:6px; margin:4px 6px 4px 0; font-size:13px; }
+.expect { background:#fffbe8; border-left:4px solid #d8ac00; padding:9px 12px; font-size:12.5px; margin-top:10px; border-radius:0 6px 6px 0; }
+.view { display:none; padding:10px; border:1px dashed #bbb; border-radius:8px; margin-top:8px; font-size:13.5px; }
+.view.active { display:block; }
+iframe { width:100%; height:120px; border:1px solid #ccc; border-radius:8px; }
+.toggle { font-size:13px; }
+#warn { background:var(--red); color:#fff; padding:9px 28px; font-size:13px; display:none; }
+.section-title { font-size:13px; letter-spacing:2px; color:#888; margin:26px 0 6px; text-transform:uppercase; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>GTM Diagnostic Lab</h1>
+  <p>Pick the symptom you are experiencing. Each question is a real diagnostic step: answering it on your own case teaches the method. Every path ends with a cause, a live demo, and the fix.</p>
+</header>
+<div id="warn">Sandbox container ID not set. Edit GTM_ID at the top of this file. Demos still push to the dataLayer, but GTM Preview will not connect.</div>
+<nav>
+  <a href="#home" data-nav="home" class="active">Symptoms</a>
+  <a href="#lab" data-nav="lab">Demo Lab</a>
+</nav>
+
+<div class="wrap">
+
+  <!-- ======================= SYMPTOM PICKER ======================= -->
+  <div id="view-home">
+    <div class="section-title">What are you experiencing?</div>
+    <div class="grid" id="cards"></div>
+  </div>
+
+  <!-- ======================= TREE VIEW ======================= -->
+  <div id="view-tree" style="display:none">
+    <div class="panel">
+      <div class="crumb"><a href="#home">All symptoms</a> / <span id="tree-title"></span></div>
+      <div id="tree-body"></div>
+    </div>
+  </div>
+
+  <!-- ======================= DEMO LAB ======================= -->
+  <div id="view-lab" style="display:none">
+    <div class="section-title">Demo lab — reproduce every failure on purpose</div>
+    <p style="font-size:13px;color:#555">Open GTM Preview on this page first. Each demo states what to build in the sandbox container and what Preview will show.</p>
+
+    <div class="demo" id="demo-stale">
+      <h3>Demo 1 — The stale value (timing)</h3>
+      <span class="tag">Trigger evaluation</span>
+      <p class="note">Build: Custom Event trigger <code>demo_event</code> with condition <code>DLV step equals checkout</code>.</p>
+      <button class="act bad" onclick="dataLayer.push({event:'demo_event'}); dataLayer.push({step:'checkout'});">Broken: event first, value after</button>
+      <button class="act good" onclick="dataLayer.push({event:'demo_event', step:'checkout'});">Correct: value and event together</button>
+      <button class="act plain" onclick="dataLayer.push({event:'demo_event'});">Fire again: watch the stale value ride along</button>
+      <div class="expect">Broken push: condition reads undefined, tag does not fire. Fire again: it fires now, carrying the previous value. Rule: data first, event last.</div>
+    </div>
+
+    <div class="demo" id="demo-matching">
+      <h3>Demo 2 — Exact matching traps</h3>
+      <span class="tag">Trigger evaluation</span>
+      <p class="note">Build: conditions <code>label equals Submit Order</code> and <code>price greater than 50</code>.</p>
+      <button class="act bad" onclick="dataLayer.push({event:'Demo_Event'});">Wrong case: Demo_Event</button>
+      <button class="act bad" onclick="dataLayer.push({event:'demo_event', label:'Submit Order '});">Invisible character in label</button>
+      <button class="act bad" onclick="dataLayer.push({event:'demo_event', price:'$100'});">price = "$100" breaks greater-than</button>
+      <button class="act good" onclick="dataLayer.push({event:'demo_event', label:'Submit Order', price:100});">Clean values</button>
+      <div class="expect">The failing label looks identical on screen. Copy it from Preview into the console and compare <code>.length</code> — 13 vs 12 characters.</div>
+    </div>
+
+    <div class="demo" id="demo-mailbox">
+      <h3>Demo 3 — The disconnected dataLayer</h3>
+      <span class="tag">dataLayer</span>
+      <p class="note">GTM installs its own push function on the array. If a later script replaces the array, GTM goes deaf — silently.</p>
+      <button class="act plain" onclick="alert(dataLayer.push.toString().substring(0,120))">Check the connection (push.toString)</button>
+      <button class="act bad" onclick="window.dataLayer=[]; alert('Array replaced. Check the connection again, then try any demo: Preview hears nothing.');">Replace the array (break it)</button>
+      <button class="act good" onclick="location.reload()">Reload to restore</button>
+      <div class="expect">Connected: minified function code. Broken: the literal text [native code]. After breaking it, every push on this page becomes invisible to Preview.</div>
+    </div>
+
+    <div class="demo" id="demo-forms">
+      <h3>Demo 4 — Native form vs JavaScript form</h3>
+      <span class="tag">Listeners</span>
+      <p class="note">Build: a Form Submission trigger. Only native submits produce the Form Submit event; JavaScript-driven forms are invisible to it.</p>
+      <form id="native_form" action="#" onsubmit="return false;">
+        <input type="email" placeholder="email"><input type="submit" value="Subscribe (native submit)">
+      </form>
+      <form id="js_form">
+        <input type="email" placeholder="email"><button type="button" class="act" onclick="alert('Sent via JavaScript. No native submit event occurred.');">Subscribe (JavaScript submit)</button>
+      </form>
+      <div class="expect">Native form: Form Submit appears in Preview (plus a custom form_submit from the simulated site script — see Demo 6). JavaScript form: silence, although the form visibly worked.</div>
+    </div>
+
+    <div class="demo" id="demo-double">
+      <h3>Demo 5 — The double-firing form</h3>
+      <span class="tag">User action</span>
+      <p class="note">Simulates a slow server: one click produces two native submit events. A conversion on the submit attempt counts twice; a server-confirmed event counts once.</p>
+      <form id="checkout_form" action="#" onsubmit="return false;">
+        <input type="text" placeholder="card number">
+        <input type="submit" value="Place Order" onclick="var f=this.form; setTimeout(function(){ f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); },150);">
+      </form>
+      <button class="act good" onclick="dataLayer.push({event:'order_confirmed', transaction_id:'T'+Date.now()});">Push the server-confirmed event (fires once, carries an ID)</button>
+      <div class="expect">One click on Place Order = two Form Submit events in Preview. The confirmed event fires once and carries a transaction ID the platform can deduplicate on.</div>
+    </div>
+
+    <div class="demo" id="demo-ghost">
+      <h3>Demo 6 — The foreign auto-tracker</h3>
+      <span class="tag">Listeners</span>
+      <p class="note">A script hardcoded into this page pushes <code>form_submit</code> for every form submission — events nobody configured in GTM. The toggle is your pause test.</p>
+      <label class="toggle"><input type="checkbox" checked onchange="AUTO_TRACKER_ON=this.checked"> auto-tracker enabled</label>
+      <div class="expect">Submit any form above with this on: a custom form_submit event appears carrying form_id and button text. Turn it off and resubmit: the ghost is gone — proof by elimination. Find the author: DevTools Network Search for <code>form_submit_text</code>; the only match is this page's own source.</div>
+    </div>
+
+    <div class="demo" id="demo-iframe">
+      <h3>Demo 7 — The embedded (iframe) form</h3>
+      <span class="tag">Environments</span>
+      <p class="note">The form below lives in a separate document. The parent page URL never changes, and parent GTM cannot see inside. Vendors solve this with bridge events.</p>
+      <iframe id="embed_frame" srcdoc='
+        <body style="font-family:Arial;font-size:13px;margin:8px">
+          <b>Embedded payment widget (separate document)</b><br><br>
+          <form onsubmit="event.preventDefault(); parent.postMessage({type:&quot;payment_complete&quot;, value: 25, currency:&quot;USD&quot;}, &quot;*&quot;);">
+            <input type="text" value="25" style="width:60px">
+            <input type="submit" value="Pay">
+          </form>
+        </body>'>
+      </iframe>
+      <label class="toggle"><input type="checkbox" id="bridge_toggle" checked> vendor bridge enabled (postMessage to parent dataLayer)</label>
+      <div class="expect">Bridge on: submitting inside the frame produces a payment_complete event in the parent dataLayer. Bridge off: the widget works, parent GTM sees nothing at all.</div>
+    </div>
+
+    <div class="demo" id="demo-spa">
+      <h3>Demo 8 — The single-page application</h3>
+      <span class="tag">Environments</span>
+      <p class="note">Views change without page loads: no new Container Loaded / DOM Ready / Window Loaded events, and the dataLayer persists between views — including old values.</p>
+      <button class="act" onclick="showView('home')">Home</button>
+      <button class="act" onclick="showView('productA')">Product A (50 USD)</button>
+      <button class="act" onclick="showView('productB')">Product B (90 USD)</button>
+      <label class="toggle"><input type="checkbox" id="reset_toggle"> push a reset before each view (the fix)</label>
+      <div id="v_home" class="view active">Home view</div>
+      <div id="v_productA" class="view">Product A — <button class="act good" onclick="dataLayer.push({event:'view_item', ecommerce:{value:50, item:'A'}})">push view_item with data (A, 50)</button></div>
+      <div id="v_productB" class="view">Product B — <button class="act bad" onclick="dataLayer.push({event:'view_item'})">push view_item without data (inherits A)</button></div>
+      <div class="expect">Navigate between views: the URL changes with no page-load events — a History Change trigger is required. Then push A's data, switch to B, push the broken event: Preview shows Product A's value riding on Product B's event. Enable the reset and repeat.</div>
+    </div>
+
+    <div class="demo" id="demo-thankyou">
+      <h3>Demo 9 — The reloadable conversion</h3>
+      <span class="tag">User action</span>
+      <p class="note">A conversion based on reaching a URL fires for reloads, bookmarks and shared links — not only purchases.</p>
+      <button class="act" onclick="history.pushState({},'','?page=thank_you'); alert('You are now on the thank-you page. Copy the URL and open it in an incognito window: the URL-based conversion fires again with no purchase behind it.');">Complete a purchase (go to thank-you page)</button>
+      <div class="expect">Build a trigger on Page URL contains thank_you, then open the URL directly. This is the argument for tracking the confirmed event from Demo 5 instead of the destination page.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ==========================================================================
+   DECISION TREES — plain data, edit freely.
+   A node is either:
+     { q: "question", help: "how to check", options: [{label, next}] }
+   or a verdict:
+     { verdict: "name", explain: "...", fix: ["...","..."], demo: "demo-id" or null,
+       demoLabel: "...", sop: "sop-key" }
+   ========================================================================== */
+var CARDS = [
+  { id:'nofire',  title:'My tag does not fire',
+    blurb:'The action happens, the tag stays silent.' },
+  { id:'double',  title:'My conversion counted twice',
+    blurb:'One action, two or more conversions in the platform.' },
+  { id:'revenue', title:'Revenue is empty or wrong',
+    blurb:'Conversions arrive, but values are missing, zero, or shifted.' },
+  { id:'ghost',   title:'Events nobody set up',
+    blurb:'Conversions or events appear that no tag should produce.' },
+  { id:'partial', title:'Works on some pages or flows only',
+    blurb:'Tracking is fine in one place and dead in another.' },
+  { id:'machine', title:'Broken only on my machine',
+    blurb:'The client or a teammate sees data; you see nothing.' },
+  { id:'diverge', title:'Platforms disagree on numbers',
+    blurb:'Two platforms count the same conversion differently.' }
+];
+
+var TREES = {
+
+nofire: {
+  q:'Open GTM Preview and perform the action. Does the event you expect appear in the left rail?',
+  help:'Click through every event the action produced, not only the first one. Message rows are pushes without an event name — they cannot fire triggers.',
+  options:[
+    { label:'No — no event appears', next:{
+        q:'In DevTools, Network tab: does gtm.js load at all on this page?',
+        help:'Filter the Network tab by gtm.js and reload the page.',
+        options:[
+          { label:'No — gtm.js is absent or blocked', next:{
+              verdict:'The container is not loading',
+              explain:'Nothing downstream can work. Common causes: consent or geo blocking, an adblocker, or GTM simply not installed on this page or subdomain.',
+              fix:['Retest in incognito with extensions off, from the target geography.','Check view-source for the GTM snippet and confirm the container ID.','If a consent banner is present, accept it and retest.'],
+              demo:null, sop:'testenv' } },
+          { label:'Yes — gtm.js loads', next:{
+              q:'Run dataLayer.push.toString() in the console. What do you see?',
+              help:'This checks whether GTM is still connected to the array the site pushes into.',
+              options:[
+                { label:'The literal text [native code]', next:{
+                    verdict:'Disconnected dataLayer',
+                    explain:'A script replaced the dataLayer array after GTM connected to it. Every later push lands in an array GTM never reads.',
+                    fix:['Search the sources (Network Search) for "dataLayer =" to find the script responsible.','Dev rule: create with window.dataLayer = window.dataLayer || [] before GTM, and only ever .push() afterwards.'],
+                    demo:'demo-mailbox', demoLabel:'Break and observe it live', sop:'mailbox' } },
+                { label:'Minified function code', next:{
+                    q:'Is the action performed inside an embedded frame, or via a JavaScript-driven form?',
+                    help:'Right-click the form area: if "View frame source" appears, it is an iframe. JavaScript forms submit without a native submit event.',
+                    options:[
+                      { label:'Yes — iframe or JavaScript form', next:{
+                          verdict:'The event never reaches this page’s dataLayer',
+                          explain:'Embedded frames are separate documents with their own dataLayer; JavaScript-driven forms never produce a native submit event.',
+                          fix:['For embedded widgets: use the vendor’s documented bridge events instead of URL or form triggers.','For JavaScript forms: ask for a dataLayer push on confirmed submission, or listen to the platform’s own success event.'],
+                          demo:'demo-iframe', demoLabel:'See the iframe boundary live', sop:'environment' } },
+                      { label:'No — regular page, regular form', next:{
+                          verdict:'The push simply never happens',
+                          explain:'GTM is connected and listening; the site code that should push the event is not executing (wrong page, wrong condition, or an upstream JavaScript error).',
+                          fix:['Confirm with the developer where and when the push runs.','Check the console for JavaScript errors that stop execution.','Verify you are testing the exact page variant where the push was implemented.'],
+                          demo:null, sop:'autopsy' } }
+                    ] } }
+              ] } }
+        ] } },
+    { label:'Yes — the event appears', next:{
+        q:'Click the event, open your tag under Tags Not Fired, and switch Display Variables to Values. What does the first failing condition show?',
+        help:'The left side of each condition row now shows what GTM actually saw at that instant.',
+        options:[
+          { label:'undefined or an old value', next:{
+              verdict:'Timing: the value arrived after the event (or the variable path is wrong)',
+              explain:'GTM evaluates conditions against a snapshot frozen at the moment the event arrives. A value pushed even a millisecond later does not exist yet — but it will ride along on the next event.',
+              fix:['Rule for developers: the value travels in the same push as the event, or before it. Data first, event last.','If the value is present in the Data Layer tab under a different key: fix the variable path.','On single-page apps, push a reset before each new payload.'],
+              demo:'demo-stale', demoLabel:'Reproduce the stale value', sop:'stale' } },
+          { label:'A value that looks equal but fails', next:{
+              verdict:'Invisible difference',
+              explain:'Comparisons are case-sensitive, and trailing or non-breaking spaces are invisible on screen. Formatted numbers ("$100") break greater/less-than comparisons.',
+              fix:['Copy the value from Preview into the console and compare .length against your expected string.','Prefer stable identifiers (IDs) over visible text in conditions.'],
+              demo:'demo-matching', demoLabel:'See the invisible failures', sop:'autopsy' } },
+          { label:'All conditions pass, tag still not fired', next:{
+              verdict:'Blocked after the trigger',
+              explain:'The trigger said yes; something stopped the tag afterwards: a blocking trigger, consent requirements, or a firing option already spent.',
+              fix:['Check the tag for blocking triggers and consent settings (and the event’s Consent tab).','Check the tag’s firing options (once per page / once per event).','Confirm the tag is not paused in the workspace.'],
+              demo:null, sop:'autopsy' } }
+        ] } }
+  ]
+},
+
+double: {
+  q:'In Preview, perform the action exactly once. How many times does the triggering event appear?',
+  help:'Count the event rows produced by your single action in the left rail.',
+  options:[
+    { label:'Twice or more', next:{
+        verdict:'The action itself fires more than once',
+        explain:'Native submit events fire per attempt, not per success. Slow responses and re-enabled buttons produce double submissions; duplicate listeners and hidden second forms have the same effect.',
+        fix:['Move the conversion to a server-confirmed success event that fires exactly once.','If the page hosts several forms, guard the trigger with the form identifier.'],
+        demo:'demo-double', demoLabel:'Reproduce the double submit', sop:'duplicates' } },
+    { label:'Once', next:{
+        q:'Network tab, same single action: how many outgoing hits reach the platform? (Filter by the pixel or conversion ID.)',
+        help:'The network log is the ground truth of what actually left the browser.',
+        options:[
+          { label:'Two or more hits', next:{
+              verdict:'Two tag instances are firing',
+              explain:'The same tag exists twice, or the container is loaded twice — typically once on the parent page and once inside an embedded frame.',
+              fix:['Check whether the container loads in both the parent and an iframe.','Scope triggers per context (hostname or frame).','Pass a transaction ID so the platform deduplicates whatever slips through.'],
+              demo:'demo-iframe', demoLabel:'See the frame boundary', sop:'duplicates' } },
+          { label:'One hit, platform still counts two', next:{
+              verdict:'Platform-side counting',
+              explain:'The browser sent one hit per action, but the destination page can be reloaded, bookmarked or shared — and without a transaction ID the platform cannot tell a repeat from a new conversion.',
+              fix:['Send a unique transaction ID with every conversion.','Move URL-based conversions to a confirmed event.','Check the platform’s counting setting (every vs unique).'],
+              demo:'demo-thankyou', demoLabel:'The reloadable conversion', sop:'duplicates' } }
+        ] } }
+  ]
+},
+
+revenue: {
+  q:'Open the conversion event in Preview and check your revenue variable in the Variables tab. What do you see?',
+  help:'Also open the Data Layer tab of the same event to see the payload that actually arrived.',
+  options:[
+    { label:'undefined', next:{
+        q:'Is the value present in the Data Layer tab of this event, under any key?',
+        options:[
+          { label:'Yes, under a different key or nesting', next:{
+              verdict:'Variable path mismatch',
+              explain:'The payload carries the value, but the variable reads a different key. Different flows on the same site often push different payload shapes.',
+              fix:['Copy the exact key path from the Data Layer tab into the variable.','Check every flow variant separately: each may need its own mapping.'],
+              demo:null, sop:'revenue' } },
+          { label:'No, the value is not in this event at all', next:{
+              verdict:'Timing: the value arrives after the event',
+              explain:'The value is pushed in a later message, after the snapshot was frozen. It will show up on the next event instead — one step behind, forever.',
+              fix:['Developers: value and event in the same push. Data first, event last.'],
+              demo:'demo-stale', demoLabel:'Reproduce it', sop:'stale' } }
+        ] } },
+    { label:'An old value from a previous action', next:{
+        verdict:'Stale carryover (single-page application pattern)',
+        explain:'The dataLayer persists between views. Without a reset, the previous item’s data rides along on the next event.',
+        fix:['Push a reset of the payload object before each new push.','Condition the trigger on the value being fresh where possible.'],
+        demo:'demo-spa', demoLabel:'See values inherit across views', sop:'stale' } },
+    { label:'The correct value, but the platform shows nothing or garbage', next:{
+        verdict:'Format or mapping problem downstream',
+        explain:'Formatted values ("$100", "1 299,00") pass equals-style checks but break numeric comparisons and platform revenue fields. The tag may also map the wrong variable into the value field.',
+        fix:['Send clean numbers and a separate currency code.','Verify the tag’s value and currency field mapping.','Confirm a transaction ID is sent for deduplication.'],
+        demo:'demo-matching', demoLabel:'The formatted-number trap', sop:'revenue' } }
+  ]
+},
+
+ghost: {
+  q:'Does the mystery event appear in GTM Preview’s left rail?',
+  help:'Perform the action that produces the ghost conversion while Preview is open.',
+  options:[
+    { label:'Yes — it shows up in Preview', next:{
+        verdict:'Something on the page pushes events GTM can hear',
+        explain:'A site script, a consent tool, or another tag’s automatic detection is pushing events into the shared dataLayer. If a loosely-scoped trigger matches them, tags fire that nobody intended.',
+        fix:['Find the author: DevTools Network Search (magnifier) for a fragment of the event name — the matching file and its domain name the culprit.','Prove it by elimination: disable the suspect (pause the tag, block the script URL) and repeat the action.','Scope your triggers so foreign events cannot satisfy them.'],
+        demo:'demo-ghost', demoLabel:'Toggle the auto-tracker', sop:'isolate' } },
+    { label:'No — Preview is clean, but the platform receives events', next:{
+        verdict:'Platform pixel auto-tracking',
+        explain:'Pixel libraries can watch clicks and forms entirely on their own and send events directly to the platform — nothing touches the dataLayer, so GTM Preview shows an innocent session.',
+        fix:['Network tab: filter by the platform’s hit signature and watch what fires during the action.','Check the pixel’s automatic-events settings in the platform interface.','Isolation test: block gtm.js entirely; anything still firing is not GTM’s doing.'],
+        demo:null, sop:'isolate' } }
+  ]
+},
+
+partial: {
+  q:'Where does tracking fail?',
+  options:[
+    { label:'Inside an embedded widget or popup', next:{
+        verdict:'Iframe boundary',
+        explain:'Embedded widgets are separate documents: the parent URL never changes and parent GTM cannot see inside. URL- and form-based triggers are blind there.',
+        fix:['Use the vendor’s documented bridge events in the parent dataLayer.','Audit both variants of a flow (embedded and standalone) — they usually track differently.'],
+        demo:'demo-iframe', demoLabel:'See the boundary live', sop:'environment' } },
+    { label:'After navigating within the site (no page reloads)', next:{
+        verdict:'Single-page application behavior',
+        explain:'Views change without page loads: page-load triggers fire once, ever; the dataLayer persists with old values.',
+        fix:['Use History Change triggers or router-pushed events for views.','Push conversion data together with its event; reset payloads between views.'],
+        demo:'demo-spa', demoLabel:'Navigate the mini-app', sop:'environment' } },
+    { label:'Only on one step of a multi-step flow', next:{
+        verdict:'Step-dependent conditions',
+        explain:'The trigger’s conditions are only true on one step (a button text, a form ID) — it works there by accident and fails everywhere else, or vice versa.',
+        fix:['Make the intent explicit: add a page or step condition.','Check what each step’s payload actually contains in Preview, step by step.'],
+        demo:'demo-matching', demoLabel:'Condition sensitivity demo', sop:'autopsy' } }
+  ]
+},
+
+machine: {
+  q:'Retest in an incognito window with all extensions disabled. Does it work now?',
+  help:'Incognito disables most extensions by default; check that no adblocker is active.',
+  options:[
+    { label:'Yes — works in incognito', next:{
+        verdict:'Your own browser was blocking it',
+        explain:'Adblockers and privacy extensions silently kill tracking requests. In the Network tab these show as red entries marked ERR_BLOCKED_BY_CLIENT.',
+        fix:['Standing rule: all tracking QA happens in incognito with extensions off.','Record your test environment (browser, geo, adblock state) in every finding you report.'],
+        demo:null, sop:'testenv' } },
+    { label:'No — still broken', next:{
+        q:'Does gtm.js load in the Network tab?',
+        options:[
+          { label:'No', next:{
+              verdict:'Geo or consent blocking',
+              explain:'Containers can be blocked entirely for certain regions or until consent is granted. From the wrong geography a perfectly healthy setup looks completely dead.',
+              fix:['Test from the campaign’s target geography (VPN if needed).','Accept the consent banner and retest.','Always disclose your test geography when reporting findings.'],
+              demo:null, sop:'testenv' } },
+          { label:'Yes', next:{
+              verdict:'Not an environment problem',
+              explain:'The container loads and your machine is clean — the issue is real. Switch to the appropriate symptom: "My tag does not fire".',
+              fix:['Continue with the tag-does-not-fire tree.'],
+              demo:null, sop:'autopsy' } }
+        ] } }
+  ]
+},
+
+diverge: {
+  q:'Are both platforms’ tags for this conversion attached to the same trigger?',
+  help:'Check in the container: open both tags and compare their firing triggers.',
+  options:[
+    { label:'No — different triggers or page-load stages', next:{
+        verdict:'The platforms are measuring different moments',
+        explain:'A tag on Page View and a tag on Window Loaded see different populations — users who leave early are counted by one and not the other. Same for attempt-based vs confirmed-event triggers.',
+        fix:['Put both platforms’ tags for one conversion on the same trigger.','Prefer the earliest stage that has the data you need; prefer confirmed events for conversions.'],
+        demo:'demo-double', demoLabel:'Attempt vs confirmed', sop:'platforms' } },
+    { label:'Yes — same trigger, numbers still differ', next:{
+        verdict:'The difference lives in the platforms, not in GTM',
+        explain:'Collection is not reporting, and reporting is not attribution. Platforms deduplicate differently, downgrade consent-less hits, filter bots, lag by hours, and attribute by different windows and models.',
+        fix:['Compare in each platform’s debug surface first, not in reports.','Check deduplication (transaction IDs), consent behavior, and attribution settings.','Compare like with like: same date ranges, same counting method.'],
+        demo:null, sop:'platforms' } }
+  ]
+}
+};
+
+/* ====================== renderer ====================== */
+function el(tag, cls, html){ var e=document.createElement(tag); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e; }
+
+function renderCards(){
+  var g=document.getElementById('cards');
+  CARDS.forEach(function(c){
+    var d=el('div','symptom','<h3>'+c.title+'</h3><p>'+c.blurb+'</p>');
+    d.onclick=function(){ location.hash='#card/'+c.id; };
+    g.appendChild(d);
+  });
+}
+
+function renderNode(node, container){
+  container.innerHTML='';
+  if(node.q){
+    container.appendChild(el('div','qtext',node.q));
+    if(node.help) container.appendChild(el('p','qhelp',node.help));
+    node.options.forEach(function(o){
+      var b=el('button','opt',o.label);
+      b.onclick=function(){ renderNode(o.next, container); window.scrollTo({top:0}); };
+      container.appendChild(b);
+    });
+  } else {
+    var v=el('div','verdict');
+    v.appendChild(el('h4',null,'Cause: '+node.verdict));
+    v.appendChild(el('p',null,node.explain));
+    var ul=el('ul'); node.fix.forEach(function(f){ ul.appendChild(el('li',null,f)); });
+    v.appendChild(el('p',null,'<b>Fix:</b>')); v.appendChild(ul);
+    var links=el('div','links');
+    if(node.demo){
+      var a=el('a',null,(node.demoLabel||'Open the demo'));
+      a.href='#lab'; a.onclick=function(){ setTimeout(function(){ var t=document.getElementById(node.demo); if(t) t.scrollIntoView({behavior:'smooth'}); },60); };
+      links.appendChild(a);
+    }
+    var s=el('a','sop','Full procedure in the SOP');
+    s.href=SOP[node.sop]||'#'; s.target='_blank';
+    links.appendChild(s);
+    v.appendChild(links);
+    container.appendChild(v);
+  }
+  var r=el('button','restart','Start this symptom over');
+  r.onclick=function(){ route(); };
+  container.appendChild(r);
+}
+
+function show(view){
+  ['home','tree','lab'].forEach(function(v){ document.getElementById('view-'+v).style.display = (v===view?'block':'none'); });
+  document.querySelectorAll('nav a').forEach(function(a){ a.classList.toggle('active', a.dataset.nav===(view==='tree'?'home':view)); });
+}
+
+function route(){
+  var h=location.hash||'#home';
+  if(h.indexOf('#card/')===0){
+    var id=h.slice(6), card=CARDS.find(function(c){return c.id===id;});
+    if(card && TREES[id]){
+      document.getElementById('tree-title').textContent=card.title;
+      renderNode(TREES[id], document.getElementById('tree-body'));
+      show('tree'); return;
+    }
+  }
+  if(h==='#lab'){ show('lab'); return; }
+  show('home');
+}
+
+window.addEventListener('hashchange', route);
+renderCards(); route();
+
+if (GTM_ID==='GTM-XXXXXXX') document.getElementById('warn').style.display='block';
+
+window.addEventListener('message', function(e){
+  if (e.data && e.data.type==='payment_complete' && document.getElementById('bridge_toggle').checked){
+    window.dataLayer.push({event:'payment_complete', value:e.data.value, currency:e.data.currency});
+  }
+});
+
+function showView(name){
+  document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active')});
+  document.getElementById('v_'+name).classList.add('active');
+  history.pushState({},'','?view='+name);
+  if(document.getElementById('reset_toggle').checked){ window.dataLayer.push({ecommerce:null}); }
+}
+</script>
+
+</body>
+</html>
