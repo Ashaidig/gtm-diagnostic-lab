@@ -238,15 +238,21 @@ iframe { width:100%; height:120px; border:1px solid var(--line); border-radius:8
     <div class="demo" id="demo-spa">
       <h3>Demo 8 - The single-page application</h3>
       <span class="tag">Environments</span>
-      <p class="note">Views change without page loads: no new Container Loaded / DOM Ready / Window Loaded events, and the dataLayer persists between views - including old values.</p>
+      <p class="note">Views change without page loads: no new Container Loaded / DOM Ready / Window Loaded events. The dataLayer is not cleared between views, and GTM merges every push into one persistent model - so data from an earlier view survives into later events unless something resets it.</p>
       <button class="act" onclick="showView('home')">Home</button>
       <button class="act" onclick="showView('productA')">Product A (50 USD)</button>
       <button class="act" onclick="showView('productB')">Product B (90 USD)</button>
-      <label class="toggle"><input type="checkbox" id="reset_toggle"> push a reset before each view (the fix)</label>
-      <div id="v_home" class="view active">Home view</div>
-      <div id="v_productA" class="view">Product A - <button class="act good" onclick="dataLayer.push({event:'view_item', ecommerce:{value:50, item:'A'}})">push view_item with data (A, 50)</button></div>
-      <div id="v_productB" class="view">Product B - <button class="act bad" onclick="dataLayer.push({event:'view_item'})">push view_item without data (inherits A)</button></div>
-      <div class="expect">Navigate between views: the URL changes with no page-load events - a History Change trigger is required. Then push A's data, switch to B, push the broken event: Preview shows Product A's value riding on Product B's event. Enable the reset and repeat.</div>
+      <div id="v_home" class="view active">Home view. Navigate to Product A, push its data, then go to Product B and push the incomplete event.</div>
+      <div id="v_productA" class="view">Product A -
+        <button class="act good" onclick="dataLayer.push({event:'view_item', ecommerce:{value:50, item:'A'}}); showState();">push view_item WITH data (A, 50)</button>
+      </div>
+      <div id="v_productB" class="view">Product B -
+        <button class="act bad" onclick="dataLayer.push({event:'view_item'}); showState();">push view_item WITHOUT data (watch A survive)</button>
+        <button class="act good" onclick="dataLayer.push({ecommerce:null}); dataLayer.push({event:'view_item'}); showState();">reset first, then push (the fix)</button>
+      </div>
+      <p class="note" style="margin-top:10px">Merged dataLayer state (what GTM variables would read right now):</p>
+      <pre id="spa_state" style="background:var(--gray);padding:10px;border-radius:8px;font-size:12px;overflow:auto;margin:0">click a button above</pre>
+      <div class="expect">Sequence: Product A, push WITH data - the state shows A at 50. Switch to Product B and push WITHOUT data - the event is empty, but the state still reads A / 50: that value would be sent with Product B's event. Now use "reset first" - the state clears before the push, and nothing stale can ride along. In GTM Preview the same story is in the Variables tab of the second event (not the API Call panel, which only shows the raw push).</div>
     </div>
 
     <div class="demo" id="demo-thankyou">
@@ -616,7 +622,21 @@ function showView(name){
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active')});
   document.getElementById('v_'+name).classList.add('active');
   history.pushState({},'','?view='+name);
-  if(document.getElementById('reset_toggle').checked){ window.dataLayer.push({ecommerce:null}); }
+}
+
+/* Shows the merged dataLayer state the way GTM builds it: later pushes
+   overwrite earlier keys, so stale values survive until something resets them. */
+function showState(){
+  var model = {};
+  (window.dataLayer||[]).forEach(function(msg){
+    if (!msg || typeof msg !== 'object') return;
+    Object.keys(msg).forEach(function(k){
+      if (k === 'event' || k.indexOf('gtm.') === 0) return;
+      if (msg[k] === null) { delete model[k]; } else { model[k] = msg[k]; }
+    });
+  });
+  var out = document.getElementById('spa_state');
+  if (out) out.textContent = JSON.stringify(model, null, 2) || '{}';
 }
 </script>
 
