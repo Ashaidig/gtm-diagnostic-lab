@@ -53,20 +53,6 @@ if (/^GTM-[A-Z0-9]+$/.test(GTM_ID)) {
 }
 </script>
 
-<!-- Simulated third-party site script: auto-pushes form_submit for every form.
-     Used by the foreign auto-tracker demo. Toggle in Demo 6. -->
-<script>
-var AUTO_TRACKER_ON = true;
-document.addEventListener('submit', function(e){
-  if (!AUTO_TRACKER_ON) return;
-  var f = e.target;
-  window.dataLayer.push({
-    event: 'form_submit',
-    form_id: f.id || '',
-    form_submit_text: (f.querySelector('[type=submit]')||{}).value || ''
-  });
-}, true);
-</script>
 
 <style>
 :root { --ink:#080808; --blue:#0009DC; --lime:#AEF33E; --red:#C6362C; --bg:#F9F9F9; --gray:#F1F1F1; --line:#DDDDDD; }
@@ -149,6 +135,21 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
 .confirm { border:1px solid var(--lime); background:#FAFEF0; }
 .side { display:flex; gap:14px; flex-wrap:wrap; }
 .side .frag { flex:1 1 260px; margin:10px 0 0; }
+.vars { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:8px; }
+.vars td { border-bottom:1px solid var(--line); padding:5px 8px; vertical-align:top; }
+.vars td:first-child { color:#666; width:170px; white-space:nowrap; }
+.vars td.val { font-family:"SFMono-Regular",Menlo,Consolas,monospace; }
+.vars tr.miss td.val { color:var(--red); font-weight:bold; }
+.clickzone { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.clickzone a { color:var(--blue); font-weight:bold; text-decoration:none; border-bottom:2px solid var(--lime); }
+.btnico { display:inline-flex; align-items:center; gap:8px; background:var(--blue); color:#fff; border:0; border-radius:8px; padding:11px 16px; font-size:13px; font-weight:bold; cursor:pointer; }
+.btnico .ico { display:inline-block; width:16px; height:16px; border-radius:50%; background:var(--lime); }
+.overlay { position:fixed; inset:0; background:rgba(8,8,8,.55); display:none; align-items:center; justify-content:center; z-index:50; }
+.overlay.open { display:flex; }
+.modal { background:#fff; border-radius:12px; padding:20px 22px; width:340px; max-width:92vw; }
+.modal h4 { margin:0 0 10px; font-size:17px; color:var(--blue); font-family:"Barlow Semi Condensed",Arial,sans-serif; }
+.ok-msg { display:none; background:var(--lime); color:var(--ink); border-radius:8px; padding:8px 10px; margin-top:10px; font-weight:bold; font-size:13px; }
+.ok-msg.show { display:block; }
 </style>
 </head>
 <body>
@@ -183,251 +184,220 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
   <!-- ======================= DEMO LAB ======================= -->
   <div id="view-lab" style="display:none">
     <div class="section-title">Demo lab - reproduce every failure on purpose</div>
-    <p style="font-size:13px;color:#555">Open GTM Preview on this page first. Each demo is a minimal fragment of a real website. The same three items appear throughout: <b>Item A - SKU-1001 - 50.00 USD</b>, <b>Item B - SKU-1002 - 90.00 USD</b>, <b>Item C - SKU-1003 - 250.00 USD</b>. When a price turns up where it does not belong, you will recognise it.</p>
+    <p style="font-size:13px;color:#555">Open GTM Preview on this page first. Each demo is a minimal fragment of a real website. Where a product is involved it is always <b>Item B - SKU-1002 - 90.00 USD</b>, so a value turning up where it does not belong is recognisable.</p>
 
     <!-- ---------------- DEMO 1 ---------------- -->
-    <div class="demo" id="demo-stale">
-      <h3>Demo 1 - The value that is always one step behind</h3>
-      <span class="tag">Trigger evaluation</span><span class="tag sym">Reports show fewer conversions than the client's own records</span>
-      <p class="intent"><b>What you were trying to do:</b> count completed purchases, using the checkout events the site already sends.</p>
-      <p class="note">Container tag: <code>D1 - Purchase (step=purchase)</code> - Custom Event <code>checkout_step</code> with condition <code>DLV step equals purchase</code>. This site pushes the same event name at every stage of the checkout and tells the stages apart with a <code>step</code> field. That is an extremely common pattern, and it is why the trigger has to read <code>step</code> at all.</p>
-
-      <div class="modebar">
-        <label><input type="radio" name="m1" value="broken" checked onchange="M1=this.value; d1Reset()"> Broken build - the event is pushed first, the step data lands a moment later</label>
-        <label><input type="radio" name="m1" value="fixed" onchange="M1=this.value; d1Reset()"> Fixed build - step data and event travel in one push</label>
-      </div>
+    <div class="demo" id="demo-value">
+      <h3>Demo 1 - Is the value even there?</h3>
+      <span class="tag">dataLayer</span><span class="tag sym">Revenue is empty or wrong in the platform</span>
+      <p class="intent"><b>What you were trying to do:</b> send the purchase value, currency and item ID to the platform.</p>
+      <p class="note">Container tag: <code>D1 - Purchase</code> - Custom Event <code>purchase</code>, no conditions. Variables to build: <code>DLV - value</code>, then <code>DLV - ecommerce.value</code> and <code>DLV - ecommerce.items.0.item_id</code>.</p>
 
       <div class="frag">
-        <div class="frag-h" id="d1head">Checkout - cart</div>
+        <div class="frag-h">Checkout - place order</div>
         <div class="frow"><span>Item B <span class="sku">SKU-1002</span></span><span>90.00</span></div>
         <div class="frow total"><span>Total</span><span class="amt">90.00 USD</span></div>
-        <button class="act" id="d1btn" onclick="d1Next()">Start checkout</button>
-        <button class="act plain" onclick="d1Reset()">Start over</button>
+        <button class="act bad" onclick="d1('empty')">Build A - site sends nothing</button>
+        <button class="act" onclick="d1('nested')">Build B - site sends nested data</button>
+        <button class="act plain" onclick="d1('formatted')">Build C - value sent as text</button>
       </div>
 
-      <div class="log" id="d1log">Walk the checkout one click at a time. After each click, read what GTM actually saw.</div>
-      <div class="expect">Broken build: every event carries the <b>previous</b> stage's data, because the event is pushed before the data. At <b>Place order</b> GTM still sees <code>step = checkout</code>, so the purchase does not count. One click later, on <b>View order details</b> - something every customer does - GTM finally sees <code>step = purchase</code> and fires the conversion there, on the wrong action and with the order ID attached. The client's records show a sale; your report does not, and a conversion appears against a page view instead. Switch to the fixed build and walk it again: the conversion fires once, at the purchase, and nowhere else.</div>
+      <div class="log" id="d1log">Nothing pushed yet.</div>
+      <div class="expect">One question separates the two common causes: <b>open the Data Layer tab of that event and look for the value under any key.</b><br><br>
+      Build A - it is not there at all. The site is not sending it. Nothing in the container can fix that; screenshot the Data Layer tab and send it to the developer.<br>
+      Build B - it is plainly there, but <code>DLV - value</code> reads <code>undefined</code>, because the value is nested. Your variable path is wrong and you fix it yourself: <code>DLV - ecommerce.value</code>. The item ID needs an array index: <code>DLV - ecommerce.items.0.item_id</code> - that numeric <code>0</code> is how a Data Layer Variable reaches into a list.<br>
+      Build C - the value is there and the path is right, but it arrives as <code>"$90.00"</code>. It will pass an equals check and break every numeric comparison and revenue field downstream.</div>
     </div>
 
     <!-- ---------------- DEMO 2 ---------------- -->
-    <div class="demo" id="demo-matching">
-      <h3>Demo 2 - Exact matching traps</h3>
-      <span class="tag">Trigger evaluation</span><span class="tag sym">The tag does not fire while the setup looks correct</span>
-      <p class="intent"><b>What you were trying to do:</b> fire the conversion only on the real order button, and only for orders above a value threshold.</p>
-      <p class="note">Container tags: <code>D2a - Label exact match</code> (Custom Event <code>place_order</code>, condition <code>label equals Submit Order</code>) and <code>D2b - Price above threshold</code> (same event, condition <code>price greater than 50</code>).</p>
+    <div class="demo" id="demo-clicks">
+      <h3>Demo 2 - Which trigger type, and why</h3>
+      <span class="tag">Listeners</span><span class="tag sym">The click trigger fires sometimes, or not at all</span>
+      <p class="intent"><b>What you were trying to do:</b> track clicks on a call-to-action, a phone number and an email address.</p>
+      <p class="note">Container tags: <code>D2a - CTA by Click ID</code> (All Elements, <code>Click ID equals cta_quote</code>), <code>D2b - CTA by CSS selector</code> (All Elements, <code>Click Element matches CSS selector #cta_quote, #cta_quote *</code>), <code>D2c - Phone link</code> and <code>D2d - Email link</code> (Just Links, <code>Click URL contains tel:</code> / <code>mailto:</code>).</p>
 
-      <div class="frag">
-        <div class="frag-h">Checkout - confirm order</div>
-        <div class="frow"><span>Item B <span class="sku">SKU-1002</span></span><span>90.00</span></div>
-        <div class="frow total"><span>Total</span><span class="amt">90.00 USD</span></div>
-        <p class="note" style="margin:10px 0 4px">Four builds of the same order button. On screen they are identical.</p>
-        <button class="act bad" onclick="d2('case')">Build 1 - Submit Order</button>
-        <button class="act bad" onclick="d2('space')">Build 2 - Submit Order</button>
-        <button class="act bad" onclick="d2('currency')">Build 3 - Submit Order</button>
-        <button class="act good" onclick="d2('clean')">Build 4 - Submit Order</button>
+      <div class="frag wide">
+        <div class="frag-h">Contact bar</div>
+        <div class="clickzone" id="clickzone">
+          <button class="btnico" id="cta_quote"><span class="ico"></span><span class="lbl">Get a quote</span></button>
+          <a id="cta_book" href="/book"><span>Book a demo</span></a>
+          <a href="tel:+15550001234">Call us</a>
+          <a href="mailto:hello@example.com">Email us</a>
+          <a href="https://example.com" target="_blank">External link</a>
+        </div>
+        <p class="note" style="margin-top:10px">Click the <b>icon</b> inside the first button, then click its <b>text</b>. Same button, different result.</p>
+        <table class="vars" id="clickvars"><tr><td colspan="2" style="color:#888">Click something above.</td></tr></table>
       </div>
 
-      <div class="log" id="d2log">Nothing pushed yet.</div>
-      <div class="expect">Build 1 sends the event name with different capitalisation - nothing appears in Preview's left rail at all, because the trigger never matched the event. Builds 2 and 3 do appear in the rail, so you know the event arrived: their conditions are what fail, on a trailing space you cannot see and on a price sent as text with a currency symbol. Build 4 fires both tags. To prove the space: copy the label out of Preview into the console and compare <code>.length</code> - 13 against 12.</div>
+      <div class="expect">Clicking the coloured circle inside the button means the clicked element is the <code>&lt;span&gt;</code>, not the button - so <code>Click ID</code> comes back empty and <code>D2a</code> does not fire, while <code>D2b</code> does, because the CSS selector <code>#cta_quote, #cta_quote *</code> matches the button and everything inside it. That is the single most common reason a click trigger "works sometimes".<br><br>
+      On the links: with <b>All Elements</b>, clicking the text inside <code>Book a demo</code> gives an empty <code>Click URL</code>, because the <code>&lt;span&gt;</code> has no <code>href</code>. <b>Just Links</b> resolves to the anchor and gives you the URL every time - which is why phone and email tracking should always use Just Links with <code>Click URL contains tel:</code> or <code>mailto:</code>, never All Elements plus Click Text.<br><br>
+      Navigation is prevented here so the page stays put; on a real site, see Demo 4.</div>
     </div>
 
     <!-- ---------------- DEMO 3 ---------------- -->
-    <div class="demo" id="demo-mailbox">
-      <h3>Demo 3 - The disconnected dataLayer</h3>
-      <span class="tag">dataLayer</span><span class="tag sym">Nothing appears in Preview at all</span>
-      <p class="intent"><b>What you were trying to do:</b> nothing yet. You have been told "tracking does not work" and you need to establish whether GTM can hear this site at all before you look at a single tag.</p>
-      <p class="note">No website fragment here - this is an instrument check, not a user journey. GTM installs its own push function on the array. If a later script replaces the array, GTM goes deaf, silently.</p>
-      <button class="act plain" onclick="d3check()">Check the connection (push.toString)</button>
-      <button class="act bad" onclick="window.dataLayer=[]; d3msg('Array replaced. Check the connection again, then try any demo above or below: Preview hears nothing.', true);">Replace the array (break it)</button>
-      <button class="act good" onclick="location.reload()">Reload to restore</button>
-      <div class="log" id="d3log">Not checked yet.</div>
-      <div class="expect">Connected: minified function code. Broken: the literal text <code>[native code]</code>. After breaking it, every push on this page becomes invisible to Preview while the page keeps working perfectly.</div>
-    </div>
-
-    <!-- ---------------- DEMO 4 ---------------- -->
     <div class="demo" id="demo-forms">
-      <h3>Demo 4 - Native form vs JavaScript form</h3>
-      <span class="tag">Listeners</span><span class="tag sym">The form works, but nothing is tracked</span>
-      <p class="intent"><b>What you were trying to do:</b> count qualified leads from the callback form.</p>
-      <p class="note">Container tag: <code>D4/D5 - Native Form Submit</code> - a Form Submission trigger. The same lead form, built two ways. Both work for the user.</p>
+      <h3>Demo 3 - Three forms, three different triggers</h3>
+      <span class="tag">Listeners</span><span class="tag sym">The form works, but no lead is recorded</span>
+      <p class="intent"><b>What you were trying to do:</b> count qualified leads, and pass the email address for enhanced conversions.</p>
+      <p class="note">Container tags: <code>D3a - Native form submit</code> (Form Submission trigger) and <code>D3b - AJAX success visible</code> (Element Visibility on <code>#ajax_success</code>, <b>Observe DOM changes</b> enabled).</p>
 
       <div class="side">
         <div class="frag">
-          <div class="frag-h">Request a callback - build A</div>
-          <form id="native_form" class="fields" action="#" onsubmit="return d4native();">
-            <label>Full name<input type="text" placeholder="Name"></label>
+          <div class="frag-h">Form A - classic</div>
+          <form id="native_form" class="fields" action="#" onsubmit="return d3native();">
+            <label>Email<input type="email" id="lead_email" placeholder="name@company.com" value="jane@example.com"></label>
+            <input type="submit" value="Request callback" class="act" style="margin-top:10px">
+          </form>
+          <p class="note">Reloads the page on a real site. Form Submission trigger sees it.</p>
+        </div>
+        <div class="frag">
+          <div class="frag-h">Form B - JavaScript</div>
+          <form id="js_form" class="fields" onsubmit="return false;">
+            <label>Email<input type="email" placeholder="name@company.com"></label>
+            <button type="button" class="act" style="margin-top:10px" onclick="d3js()">Request callback</button>
+          </form>
+          <p class="note">Intercepts the click and sends the data itself. No native submit event exists.</p>
+        </div>
+        <div class="frag">
+          <div class="frag-h">Form C - AJAX</div>
+          <form id="ajax_form" class="fields" onsubmit="return d3ajax();">
             <label>Email<input type="email" placeholder="name@company.com"></label>
             <input type="submit" value="Request callback" class="act" style="margin-top:10px">
           </form>
-        </div>
-        <div class="frag">
-          <div class="frag-h">Request a callback - build B</div>
-          <form id="js_form" class="fields" onsubmit="return false;">
-            <label>Full name<input type="text" placeholder="Name"></label>
-            <label>Email<input type="email" placeholder="name@company.com"></label>
-            <button type="button" class="act" style="margin-top:10px" onclick="d4js()">Request callback</button>
-          </form>
+          <div class="ok-msg" id="ajax_success">Thanks, we will call you back.</div>
+          <p class="note">Confirms in place, no reload. The success message is your signal.</p>
         </div>
       </div>
 
-      <div class="log" id="d4log">Nothing submitted yet.</div>
-      <div class="expect">Build A produces a Form Submit event in Preview (plus a <code>form_submit</code> event from the simulated site script - see Demo 6). Build B shows the same confirmation to the user and produces absolutely nothing. "The form works, so tracking should work" is not an argument.</div>
+      <button class="act plain" onclick="d3email()">Show what enhanced conversions would read from Form A</button>
+      <div class="log" id="d3log">Nothing submitted yet.</div>
+      <div class="expect">Form A fires GTM's Form Submission trigger. Form B fires nothing at all - the user gets a confirmation, GTM sees silence, and this is the most common reason a lead form "is not tracking". Form C also fires nothing on submit, but it reveals a success message, so Element Visibility on that message with <b>Observe DOM changes</b> enabled is your trigger.<br><br>
+      For B and C the better fix is still to ask for a dataLayer event on confirmed submission. Element Visibility is what you use while you wait, or when nobody will build it.<br><br>
+      <b>On the email:</b> read it into the platform's user-provided data field, which hashes it before anything leaves the browser. Do not push a raw email address into the dataLayer, and do not put it in a general-purpose variable other tags can read.</div>
+    </div>
+
+    <!-- ---------------- DEMO 4 ---------------- -->
+    <div class="demo" id="demo-race">
+      <h3>Demo 4 - The tag that loses the race</h3>
+      <span class="tag">Tag execution</span><span class="tag sym">Preview says the tag fired, but nothing was sent</span>
+      <p class="intent"><b>What you were trying to do:</b> count clicks on an outbound link that immediately leaves the page.</p>
+      <p class="note">Container tag: <code>D4 - Outbound link</code> on a Just Links trigger. Build it twice: once with <b>Wait for Tags</b> off, once on.</p>
+
+      <div class="frag">
+        <div class="frag-h">Resources</div>
+        <p class="note" style="margin:0 0 8px">Open the Network tab and tick <b>Preserve log</b> before clicking, or you will lose the evidence in the reload.</p>
+        <label class="toggle"><input type="checkbox" id="wait_toggle"> hold the navigation for 1 second (what <b>Wait for Tags</b> does)</label><br>
+        <button class="act" style="margin-top:10px" onclick="d4go()">Download the brochure</button>
+      </div>
+
+      <div class="log" id="d4log">Nothing clicked yet.</div>
+      <div class="expect">Unticked: the request the tag sends is still in flight when the browser unloads the page, so it appears in the Network tab as <b>(cancelled)</b> and nothing reaches the platform - while GTM Preview happily records the tag as fired. Ticked: the navigation is held back, the request completes, and the same click is counted.<br><br>
+      In the container this is the <b>Wait for Tags</b> option on Click and Form triggers, with a max wait of one to two seconds. On forms, pair it with <b>Check Validation</b> so you do not count submissions the form itself rejects. This is one of the few tracking problems you can fix entirely on your own, in about a minute.</div>
     </div>
 
     <!-- ---------------- DEMO 5 ---------------- -->
-    <div class="demo" id="demo-double">
-      <h3>Demo 5 - The double-firing form</h3>
-      <span class="tag">User action</span><span class="tag sym">One order, two conversions</span>
-      <p class="intent"><b>What you were trying to do:</b> count each completed order exactly once, with its revenue.</p>
-      <p class="note">Container tags: <code>D4/D5 - Native Form Submit</code> and <code>D5 - Server-confirmed order</code> (Custom Event <code>order_confirmed</code>). This checkout simulates a slow server: one click produces two submit events.</p>
+    <div class="demo" id="demo-popup">
+      <h3>Demo 5 - The popup nobody can see</h3>
+      <span class="tag">Environments</span><span class="tag sym">It works on the page but not in the popup</span>
+      <p class="intent"><b>What you were trying to do:</b> count enquiries submitted through the modal that opens on the page.</p>
+      <p class="note">Container tag: <code>D5 - Popup enquiry</code> - Element Visibility on <code>#modal_success</code>, selection method ID, <b>Observe DOM changes</b> enabled, fire on every appearance.</p>
 
-      <div class="side">
-        <div class="frag">
-          <div class="frag-h">Checkout - payment</div>
-          <div class="frow"><span>Item B <span class="sku">SKU-1002</span></span><span>90.00</span></div>
-          <div class="frow total"><span>Total</span><span class="amt">90.00 USD</span></div>
-          <form id="checkout_form" class="fields" action="#" onsubmit="return false;">
-            <label>Card number<input type="text" placeholder="4242 4242 4242 4242"></label>
-            <input type="submit" value="Place Order" class="act" style="margin-top:10px"
-                   onclick="var f=this.form; setTimeout(function(){ f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); },150);">
-          </form>
-        </div>
-        <div class="frag confirm" id="d5confirm" style="display:none">
-          <div class="frag-h">Order confirmed</div>
-          <div class="frow"><span>Order ID</span><span id="d5orderid">-</span></div>
-          <div class="frow"><span>Item B <span class="sku">SKU-1002</span></span><span>90.00</span></div>
-          <div class="frow total"><span>Charged</span><span class="amt">90.00 USD</span></div>
-          <button class="act good" onclick="d5confirmed()">Push the server-confirmed event</button>
-        </div>
+      <div class="frag">
+        <div class="frag-h">Landing page</div>
+        <p class="note" style="margin:0 0 8px">Watch the address bar. It never changes.</p>
+        <button class="act" onclick="d5open()">Enquire now</button>
       </div>
 
-      <div class="log" id="d5log">Nothing submitted yet.</div>
-      <div class="expect">One click on Place Order = two Form Submit events in Preview <b>and</b> two POST requests in the Network tab (filter by <code>postman-echo</code>). Counting the same action at three layers is how you find where the doubling happens. The confirmed event fires once and carries an order ID the platform can deduplicate on.</div>
+      <div class="log" id="d5log">Popup not opened yet.</div>
+      <div class="expect">The popup is part of the same page, so the URL never changes, no page loads, and no page-load trigger will ever fire inside it. A click trigger on the button counts people who opened the popup, not people who completed it.<br><br>
+      The success message is the only honest signal available without a developer, and Element Visibility is the trigger built for it. <b>Observe DOM changes</b> is essential here: the message does not exist when the page loads, so without that option GTM never looks again.<br><br>
+      Close and reopen the popup to see why the "once per page" setting matters.</div>
     </div>
 
     <!-- ---------------- DEMO 6 ---------------- -->
-    <div class="demo" id="demo-ghost">
-      <h3>Demo 6 - The foreign auto-tracker</h3>
-      <span class="tag">Listeners</span><span class="tag sym">Events nobody set up</span>
-      <p class="intent"><b>What you were trying to do:</b> audit which events already exist on the page, and decide whether the <code>form_submit</code> event you found is safe to build a conversion on.</p>
-      <p class="note">Container tag: <code>D6 - Foreign auto-tracker event</code>. A script hardcoded into this page pushes <code>form_submit</code> for every form submission - events nobody configured in GTM. The toggle below is your pause test.</p>
-      <p class="note"><b>The variant that catches people out:</b> the foreign event does not have to come from the site. Another Google tag sitting in the same container can generate <code>form_submit</code> automatically, and a Custom Event trigger built on that generic name will happily fire on it. The fingerprint is <code>eventModel.</code> in the payload - those parameters mean a Google tag wrote the event, not the site. Before building on any common event name, check whether something else on the page already produces it.</p>
-
-      <label class="toggle"><input type="checkbox" checked onchange="AUTO_TRACKER_ON=this.checked; d6msg(this.checked)"> site auto-tracker enabled</label>
-
-      <div class="frag" style="margin-top:10px">
-        <div class="frag-h">Newsletter signup</div>
-        <form id="ghost_form" class="fields" action="#" onsubmit="return d6submit();">
-          <label>Email<input type="email" placeholder="name@company.com"></label>
-          <input type="submit" value="Subscribe" class="act" style="margin-top:10px">
-        </form>
-      </div>
-
-      <div class="log" id="d6log">Nothing submitted yet.</div>
-      <div class="expect">Submit with the toggle on: a <code>form_submit</code> event appears carrying <code>form_id</code> and the button text - nobody built it. Turn the toggle off and resubmit: the ghost is gone, while the native Form Submit event is unaffected. That contrast is proof by elimination. To name the author: DevTools Network Search for <code>form_submit_text</code> - the only match is this page's own source.</div>
-    </div>
-
-    <!-- ---------------- DEMO 7 ---------------- -->
     <div class="demo" id="demo-iframe">
-      <h3>Demo 7 - The embedded (iframe) payment widget</h3>
-      <span class="tag">Environments</span><span class="tag sym">Everything works except inside the widget</span>
+      <h3>Demo 6 - The embedded widget</h3>
+      <span class="tag">Environments</span><span class="tag sym">The payment succeeds and nothing is tracked</span>
       <p class="intent"><b>What you were trying to do:</b> track completed payments made inside the embedded widget.</p>
-      <p class="note">Container tag: <code>D7 - Iframe bridge payment</code> (Custom Event <code>payment_complete</code>). The widget below is a separate document supplied by a third party. The parent URL never changes and parent GTM cannot see inside.</p>
+      <p class="note">Container tag: <code>D6 - Widget payment</code> - Custom Event <code>payment_complete</code>.</p>
 
       <div class="frag wide">
-        <div class="frag-h">Donation page - third-party widget</div>
-        <div class="frow"><span>Item A <span class="sku">SKU-1001</span></span><span>50.00</span></div>
+        <div class="frag-h">Payment page</div>
+        <div class="frow"><span>Item B <span class="sku">SKU-1002</span></span><span>90.00</span></div>
         <iframe id="embed_frame" srcdoc='
           <body style="font-family:Arial;font-size:13px;margin:0;padding:12px;background:#fff">
-            <div style="font-weight:bold;font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:#080808;border-bottom:1px solid #ddd;padding-bottom:6px;margin-bottom:10px">Secure payment (separate document)</div>
-            <form onsubmit="event.preventDefault(); this.querySelector(&quot;.done&quot;).style.display=&quot;block&quot;; parent.postMessage({type:&quot;payment_complete&quot;, value: 50, currency:&quot;USD&quot;}, &quot;*&quot;);">
+            <div style="font-weight:bold;font-size:12px;letter-spacing:.5px;text-transform:uppercase;border-bottom:1px solid #ddd;padding-bottom:6px;margin-bottom:10px">Secure payment - a separate document</div>
+            <form onsubmit="event.preventDefault(); document.getElementById(&amp;quot;done&amp;quot;).style.display=&amp;quot;block&amp;quot;; parent.postMessage({type:&amp;quot;payment_complete&amp;quot;, value:90, currency:&amp;quot;USD&amp;quot;}, &amp;quot;*&amp;quot;);">
               <label style="font-size:12px;color:#666">Amount (USD)</label><br>
-              <input type="text" value="50.00" style="width:90px;padding:6px;border:1px solid #ccc;border-radius:6px">
-              <input type="submit" value="Pay 50.00" style="background:#0009DC;color:#fff;border:0;border-radius:6px;padding:7px 12px;font-weight:bold;cursor:pointer">
-              <div class="done" style="display:none;color:#080808;background:#AEF33E;border-radius:6px;padding:6px 8px;margin-top:8px;font-weight:bold">Payment complete</div>
+              <input type="text" value="90.00" style="width:90px;padding:6px;border:1px solid #ccc;border-radius:6px">
+              <input type="submit" value="Pay 90.00" style="background:#0009DC;color:#fff;border:0;border-radius:6px;padding:7px 12px;font-weight:bold;cursor:pointer">
+              <div id="done" style="display:none;background:#AEF33E;border-radius:6px;padding:6px 8px;margin-top:8px;font-weight:bold">Payment complete</div>
             </form>
           </body>'>
         </iframe>
       </div>
 
-      <label class="toggle"><input type="checkbox" id="bridge_toggle" checked> vendor bridge enabled (widget posts its event out to the parent page)</label>
-      <div class="log" id="d7log">Nothing paid yet.</div>
-      <div class="expect">Bridge on: paying inside the widget produces a <code>payment_complete</code> event in the parent dataLayer, carrying 50.00. Bridge off: the payment visibly succeeds inside the frame and the parent page learns nothing at all - no event, no trigger, no fix available from your side. That is when the answer to the client is "this is a vendor question".</div>
+      <label class="toggle"><input type="checkbox" id="bridge_toggle" checked> the widget sends its result out to the page around it</label>
+      <div class="log" id="d6log">Nothing paid yet.</div>
+      <div class="expect">An iframe is a separate document. Your container lives on the page around it and cannot see in: no clicks, no form submits, no URL change, nothing.<br><br>
+      There are only three ways this is ever solved. <b>One:</b> the widget sends its result out to the parent page and the page pushes it to the dataLayer - the tick box above. <b>Two:</b> you own the content of the iframe and can put a push inside it, which is true for your own subdomains and almost never true for a third-party widget. <b>Three:</b> neither, in which case there is no container-side fix and the answer to the client is that the vendor has to provide it.<br><br>
+      Untick the box and pay again: the payment succeeds in front of you and the page around it learns nothing.</div>
+    </div>
+
+    <!-- ---------------- DEMO 7 ---------------- -->
+    <div class="demo" id="demo-spa">
+      <h3>Demo 7 - The site that never reloads</h3>
+      <span class="tag">Environments</span><span class="tag sym">Only the first page is ever counted</span>
+      <p class="intent"><b>What you were trying to do:</b> count page views across the site.</p>
+      <p class="note">Container tags: <code>D7a - History Change</code> (History Change trigger, <code>History Source equals pushState</code>) and <code>D7b - Route change event</code> (Custom Event <code>virtual_page_view</code>).</p>
+
+      <div class="frag wide">
+        <div class="frag-h" id="spa_head">Home</div>
+        <button class="act" onclick="spaGo('home')">Home</button>
+        <button class="act" onclick="spaGo('about')">About us</button>
+        <button class="act" onclick="spaGo('contact')">Contact us</button>
+        <p class="note" style="margin-top:10px">Watch the address bar change while the tab never reloads.</p>
+        <label class="toggle"><input type="checkbox" id="spa_event_toggle"> the site also pushes a <code>virtual_page_view</code> event on each route change</label>
+      </div>
+
+      <div class="log" id="d7log">No navigation yet.</div>
+      <div class="expect">Open the Network tab, filter by <b>Doc</b>, tick Preserve log, and click through the menu: the address changes and no new document is ever requested. That two-minute test is how you identify this on any site, whatever it is built with.<br><br>
+      In Preview, Container Loaded, DOM Ready and Window Loaded appear once at the very top and never again, so a pageview tag on any of them counts one view per visit no matter how far the user goes. History Change catches the rest.<br><br>
+      With the tick box off you get only the URL change - History Change fires the moment the address updates, before the new content exists, so anything reading the page title or content is reading the previous page. With it on, the site announces the route itself and carries its own data, which is the version to ask developers for. The same lesson applies to values: on a site that never reloads, nothing clears the dataLayer between views, so data pushed for one view survives into the next unless something resets it.</div>
     </div>
 
     <!-- ---------------- DEMO 8 ---------------- -->
-    <div class="demo" id="demo-spa">
-      <h3>Demo 8 - The single-page application</h3>
-      <span class="tag">Environments</span><span class="tag sym">Conversions arrive with the wrong price</span>
-      <p class="intent"><b>What you were trying to do:</b> track product views with the correct product and price, to feed a remarketing audience.</p>
-      <p class="note">Container tags: <code>D8 - History Change (SPA views)</code> and <code>D8 - view_item (watch the value)</code>. Views change without page loads: no new Container Loaded, DOM Ready or Window Loaded. The dataLayer is never cleared, and GTM merges every push into one running picture.</p>
+    <div class="demo" id="demo-orderid">
+      <h3>Demo 8 - Getting an order ID when nobody will give you one</h3>
+      <span class="tag">User action</span><span class="tag sym">The same purchase is counted more than once</span>
+      <p class="intent"><b>What you were trying to do:</b> count each purchase once, which means every conversion needs a unique order ID.</p>
+      <p class="note">Container tag: <code>D8 - Purchase with scraped order ID</code> - Custom Event <code>purchase</code>, order ID read by a <b>DOM Element</b> variable (selection method ID, element ID <code>order_number</code>).</p>
 
-      <div class="frag wide">
-        <div class="frag-h">Shop</div>
-        <button class="act" onclick="showView('home')">Home</button>
-        <button class="act" onclick="showView('productA')">Item A</button>
-        <button class="act" onclick="showView('productB')">Item B</button>
-
-        <div id="v_home" class="view active">
-          <p class="note">Home. Open Item A and push its data, then open Item B and push the incomplete event - the way a badly built product page would.</p>
-        </div>
-
-        <div id="v_productA" class="view">
-          <div class="frow"><span>Item A <span class="sku">SKU-1001</span></span><span>50.00</span></div>
-          <div class="frow total"><span>Price</span><span class="amt">50.00 USD</span></div>
-          <button class="act good" onclick="dataLayer.push({event:'view_item', ecommerce:{value:50, item:'SKU-1001'}}); showState(); d8msg('Item A viewed - pushed value 50, item SKU-1001.');">View Item A (pushes its data)</button>
-        </div>
-
-        <div id="v_productB" class="view">
-          <div class="frow"><span>Item B <span class="sku">SKU-1002</span></span><span>90.00</span></div>
-          <div class="frow total"><span>Price</span><span class="amt">90.00 USD</span></div>
-          <button class="act bad" onclick="dataLayer.push({event:'view_item'}); showState(); d8msg('Item B viewed - pushed NO data. Read the merged state below.', true);">View Item B (broken build - pushes no data)</button>
-          <button class="act good" onclick="dataLayer.push({ecommerce:null}); dataLayer.push({event:'view_item'}); showState(); d8msg('Item B viewed - payload reset first, then event pushed.');">View Item B (fixed build - reset first)</button>
-        </div>
+      <div class="frag">
+        <div class="frag-h">Thank you for your order</div>
+        <div class="frow"><span>Order number</span><span id="order_number">ORD-482913</span></div>
+        <div class="frow"><span>Item B <span class="sku">SKU-1002</span></span><span>90.00</span></div>
+        <div class="frow total"><span>Charged</span><span class="amt">90.00 USD</span></div>
+        <button class="act bad" onclick="d8push(false)">Purchase event - no order ID (what the site sends)</button>
+        <button class="act good" onclick="d8push(true)">Read the order ID off the page</button>
       </div>
 
-      <p class="note" style="margin-top:10px">Merged dataLayer state - what GTM variables would read at this instant:</p>
-      <pre class="log" id="spa_state" style="margin:0">click a button above</pre>
-      <div class="log" id="d8log">Nothing viewed yet.</div>
-      <div class="expect">Sequence: Item A, push its data - the state shows 50 / SKU-1001. Switch to Item B and use the broken build - the event carries nothing, but the state still reads 50 / SKU-1001, so a 90.00 product would report 50.00. The fixed build clears the payload first. Same root cause as Demo 1 - nothing ever resets - but here the trigger fired at exactly the right moment and only the number is wrong, which is far harder to spot. In Preview, read this in the Variables tab of the second event, not the API Call panel.</div>
+      <div class="log" id="d8log">Nothing pushed yet.</div>
+      <div class="expect">Without an ID the platform cannot tell a reload, a bookmark or a shared link from a new sale, so the count drifts upward and nobody can explain it. The number is printed on the page in front of you - which means you can read it without anyone's help.<br><br>
+      Build a <b>DOM Element</b> variable with selection method <b>ID</b> and element ID <code>order_number</code>, then map it into the tag's transaction ID field. The <a href="https://chromewebstore.google.com/detail/gtm-variable-builder/feeboihdgpananoagfmbohoogoncndba" target="_blank">GTM Variable Builder</a> extension will generate the selector for you if the element has no ID.<br><br>
+      <b>Its limits, which you must say out loud to the client.</b> Scraping breaks the day the site changes, so it is an interim fix with an expiry date, not a solution. And it only works where you can put a container: if the purchase completes on a payment provider's own domain, or there is no confirmation page at all, there is nothing to scrape. In those two cases your options are a return URL carrying the order parameters, the payment provider's own tracking, or a server-side integration - and none of them are container work.</div>
     </div>
+  </div>
 
-    <!-- ---------------- DEMO 9 ---------------- -->
-    <div class="demo" id="demo-thankyou">
-      <h3>Demo 9 - The reloadable conversion</h3>
-      <span class="tag">User action</span><span class="tag sym">Conversions keep appearing without purchases</span>
-      <p class="intent"><b>What you were trying to do:</b> count purchases, using the thank-you page because it is the only signal you were given.</p>
-      <p class="note">Container tag: <code>D9 - URL-based conversion (reloadable)</code> - Page View with <code>Page URL contains thank_you</code>. A conversion built on reaching a URL counts arrivals at a page, not purchases.</p>
-
-      <div class="side">
-        <div class="frag">
-          <div class="frag-h">Checkout</div>
-          <div class="frow"><span>Item B <span class="sku">SKU-1002</span></span><span>90.00</span></div>
-          <div class="frow total"><span>Total</span><span class="amt">90.00 USD</span></div>
-          <button class="act" onclick="d9buy()">Complete purchase</button>
-        </div>
-        <div class="frag confirm" id="d9confirm" style="display:none">
-          <div class="frag-h">Thank you for your order</div>
-          <div class="frow"><span>Order ID</span><span id="d9orderid">-</span></div>
-          <div class="frow total"><span>Charged</span><span class="amt">90.00 USD</span></div>
-          <p class="note" style="margin:8px 0 0">Copy this page's URL from the address bar and open it in an incognito window.</p>
-        </div>
-      </div>
-
-      <div class="log" id="d9log">No purchase yet.</div>
-      <div class="expect">Clicking Complete purchase changes the address without loading a page, so the URL-based tag does <b>not</b> fire - only the History Change tag does. Now open the copied URL directly: the conversion fires, with no purchase behind it, and the same order ID appears twice. Reloads, bookmarks and shared links all count. This is the argument for the confirmed event from Demo 5.</div>
-    </div>
-
-    <!-- ---------------- DEMO 10 ---------------- -->
-    <div class="demo" id="demo-signals">
-      <h3>Demo 10 - Network signal generator</h3>
-      <span class="tag">Network hits</span><span class="tag sym">Preview looks clean, the platform disagrees</span>
-      <p class="intent"><b>What you were trying to do:</b> verify what the platform is actually receiving, before you report back that tracking is fine.</p>
-      <p class="note">No website fragment and no container involvement - this demo exists to show what GTM Preview cannot see. A dataLayer push is not traffic: a hit only exists when a tag sends one.</p>
-      <button class="act" id="load_pixel_btn" onclick="loadDemoPixel()">Load demo pixel (placeholder ID)</button>
-      <button class="act good" onclick="d10lead()">Send a Lead event</button>
-      <div class="log" id="d10log">Pixel not loaded.</div>
-      <div class="expect">After loading: filter the Network tab by <code>facebook.com/tr</code>. You will see PageView on load, your Lead event on demand - and, if you click around the page, automatic events (<code>SubscribedButtonClick</code>, <code>Microdata</code>) the library fires entirely on its own. That is live pixel auto-tracking, and none of it ever appears in GTM Preview. The placeholder ID means no real account receives anything.</div>
+  <div class="overlay" id="modal_overlay">
+    <div class="modal">
+      <h4>Enquire now</h4>
+      <form id="modal_form" class="fields" onsubmit="return d5submit();">
+        <label>Email<input type="email" placeholder="name@company.com"></label>
+        <input type="submit" value="Send enquiry" class="act" style="margin-top:10px">
+        <button type="button" class="act plain" style="margin-top:10px" onclick="d5close()">Close</button>
+      </form>
+      <div class="ok-msg" id="modal_success">Thanks, we will be in touch.</div>
     </div>
   </div>
 
@@ -482,7 +452,7 @@ nofire: {
                     verdict:'Disconnected dataLayer',
                     explain:'A script replaced the dataLayer array after GTM connected to it. Every later push lands in an array GTM never reads.',
                     fix:['Search the sources (Network Search) for "dataLayer =" to find the script responsible.','Dev rule: create with window.dataLayer = window.dataLayer || [] before GTM, and only ever .push() afterwards.'],
-                    demo:'demo-mailbox', demoLabel:'Break and observe it live', sop:'mailbox' } },
+                    demo:null, sop:'mailbox' } },
                 { label:'Minified function code', next:{
                     q:'Is the action performed inside an embedded frame, or via a JavaScript-driven form?',
                     help:'Right-click the form area: if "View frame source" appears, it is an iframe. JavaScript forms submit without a native submit event.',
@@ -508,12 +478,12 @@ nofire: {
               verdict:'Timing: the value arrived after the event (or the variable path is wrong)',
               explain:'GTM evaluates conditions against a snapshot frozen at the moment the event arrives. A value pushed even a millisecond later does not exist yet - but it will ride along on the next event.',
               fix:['Rule for developers: the value travels in the same push as the event, or before it. Data first, event last.','If the value is present in the Data Layer tab under a different key: fix the variable path.','On single-page apps, push a reset before each new payload.'],
-              demo:'demo-stale', demoLabel:'Reproduce the stale value', sop:'stale' } },
+              demo:'demo-value', demoLabel:'Is the value there at all?', sop:'stale' } },
           { label:'A value that looks equal but fails', next:{
               verdict:'Invisible difference',
               explain:'Comparisons are case-sensitive, and trailing or non-breaking spaces are invisible on screen. Formatted numbers ("$100") break greater/less-than comparisons.',
               fix:['Copy the value from Preview into the console and compare .length against your expected string.','Prefer stable identifiers (IDs) over visible text in conditions.'],
-              demo:'demo-matching', demoLabel:'See the invisible failures', sop:'autopsy' } },
+              demo:'demo-clicks', demoLabel:'Compare the trigger types', sop:'autopsy' } },
           { label:'All conditions pass, tag still not fired', next:{
               verdict:'Blocked after the trigger',
               explain:'The trigger said yes; something stopped the tag afterwards: a blocking trigger, consent requirements, or a firing option already spent.',
@@ -531,7 +501,7 @@ double: {
         verdict:'The action itself fires more than once',
         explain:'Native submit events fire per attempt, not per success. Slow responses and re-enabled buttons produce double submissions; duplicate listeners and hidden second forms have the same effect.',
         fix:['Move the conversion to a server-confirmed success event that fires exactly once.','If the page hosts several forms, guard the trigger with the form identifier.'],
-        demo:'demo-double', demoLabel:'Reproduce the double submit', sop:'duplicates' } },
+        demo:'demo-orderid', demoLabel:'Deduplicate with an order ID', sop:'duplicates' } },
     { label:'Once', next:{
         q:'Network tab, same single action: how many outgoing hits reach the platform? (Filter by the pixel or conversion ID.)',
         help:'The network log is the ground truth of what actually left the browser.',
@@ -545,7 +515,7 @@ double: {
               verdict:'Platform-side counting',
               explain:'The browser sent one hit per action, but the destination page can be reloaded, bookmarked or shared - and without a transaction ID the platform cannot tell a repeat from a new conversion.',
               fix:['Send a unique transaction ID with every conversion.','Move URL-based conversions to a confirmed event.','Check the platform’s counting setting (every vs unique).'],
-              demo:'demo-thankyou', demoLabel:'The reloadable conversion', sop:'duplicates' } }
+              demo:'demo-orderid', demoLabel:'Get an order ID without developers', sop:'duplicates' } }
         ] } }
   ]
 },
@@ -566,18 +536,18 @@ revenue: {
               verdict:'Timing: the value arrives after the event',
               explain:'The value is pushed in a later message, after the snapshot was frozen. It will show up on the next event instead - one step behind, forever.',
               fix:['Developers: value and event in the same push. Data first, event last.'],
-              demo:'demo-stale', demoLabel:'Reproduce it', sop:'stale' } }
+              demo:'demo-value', demoLabel:'Is the value there at all?', sop:'stale' } }
         ] } },
     { label:'An old value from a previous action', next:{
         verdict:'Stale carryover (single-page application pattern)',
         explain:'The dataLayer persists between views. Without a reset, the previous item’s data rides along on the next event.',
         fix:['Push a reset of the payload object before each new push.','Condition the trigger on the value being fresh where possible.'],
-        demo:'demo-spa', demoLabel:'See values inherit across views', sop:'stale' } },
+        demo:'demo-spa', demoLabel:'Sites that never reload', sop:'stale' } },
     { label:'The correct value, but the platform shows nothing or garbage', next:{
         verdict:'Format or mapping problem downstream',
         explain:'Formatted values ("$100", "1 299,00") pass equals-style checks but break numeric comparisons and platform revenue fields. The tag may also map the wrong variable into the value field.',
         fix:['Send clean numbers and a separate currency code.','Verify the tag’s value and currency field mapping.','Confirm a transaction ID is sent for deduplication.'],
-        demo:'demo-matching', demoLabel:'The formatted-number trap', sop:'revenue' } }
+        demo:'demo-value', demoLabel:'The formatted-number trap', sop:'revenue' } }
   ]
 },
 
@@ -589,12 +559,12 @@ ghost: {
         verdict:'Something on the page pushes events GTM can hear',
         explain:'A site script, a consent tool, or another tag’s automatic detection is pushing events into the shared dataLayer. If a loosely-scoped trigger matches them, tags fire that nobody intended.',
         fix:['Find the author: DevTools Network Search (magnifier) for a fragment of the event name - the matching file and its domain name the culprit.','Prove it by elimination: disable the suspect (pause the tag, block the script URL) and repeat the action.','Scope your triggers so foreign events cannot satisfy them.'],
-        demo:'demo-ghost', demoLabel:'Toggle the auto-tracker', sop:'isolate' } },
+        demo:null, sop:'isolate' } },
     { label:'No - Preview is clean, but the platform receives events', next:{
         verdict:'Platform pixel auto-tracking',
         explain:'Pixel libraries can watch clicks and forms entirely on their own and send events directly to the platform - nothing touches the dataLayer, so GTM Preview shows an innocent session.',
         fix:['Network tab: filter by the platform’s hit signature and watch what fires during the action.','Check the pixel’s automatic-events settings in the platform interface.','Isolation test: block gtm.js entirely; anything still firing is not GTM’s doing.'],
-        demo:'demo-signals', demoLabel:'Watch a pixel track by itself', sop:'isolate' } }
+        demo:null, sop:'isolate' } }
   ]
 },
 
@@ -610,12 +580,12 @@ partial: {
         verdict:'Client-side routing (single-page behaviour)',
         explain:'Views change without page loads: page-load triggers fire once, ever; the dataLayer persists with old values.',
         fix:['Use History Change triggers or router-pushed events for views.','Push conversion data together with its event; reset payloads between views.'],
-        demo:'demo-spa', demoLabel:'Navigate the mini-shop', sop:'environment' } },
+        demo:'demo-spa', demoLabel:'Navigate a site that never reloads', sop:'environment' } },
     { label:'Only on one step of a multi-step flow', next:{
         verdict:'Step-dependent conditions',
         explain:'The trigger’s conditions are only true on one step (a button text, a form ID) - it works there by accident and fails everywhere else, or vice versa.',
         fix:['Make the intent explicit: add a page or step condition.','Check what each step’s payload actually contains in Preview, step by step.'],
-        demo:'demo-matching', demoLabel:'Condition sensitivity demo', sop:'autopsy' } }
+        demo:'demo-clicks', demoLabel:'Compare the trigger types', sop:'autopsy' } }
   ]
 },
 
@@ -653,7 +623,7 @@ diverge: {
         verdict:'The platforms are measuring different moments',
         explain:'A tag on Page View and a tag on Window Loaded see different populations - users who leave early are counted by one and not the other. Same for attempt-based vs confirmed-event triggers.',
         fix:['Put both platforms’ tags for one conversion on the same trigger.','Prefer the earliest stage that has the data you need; prefer confirmed events for conversions.'],
-        demo:'demo-double', demoLabel:'Attempt vs confirmed', sop:'platforms' } },
+        demo:'demo-race', demoLabel:'Timing and Wait for Tags', sop:'platforms' } },
     { label:'Yes - same trigger, numbers still differ', next:{
         verdict:'The difference lives in the platforms, not in GTM',
         explain:'Collection is not reporting, and reporting is not attribution. Platforms deduplicate differently, downgrade consent-less hits, filter bots, lag by hours, and attribute by different windows and models.',
@@ -772,208 +742,151 @@ function logTo(id, text, warn){
 }
 function orderId(){ return 'ORD-' + String(Date.now()).slice(-6); }
 
-/* ---- Demo 1: multi-step checkout, one event name, distinguished by step ---- */
-var M1 = 'broken', d1i = 0, d1Seen = null, d1Txn = null;
-var D1STEPS = [
-  { step:'checkout',      label:'Start checkout',     head:'Checkout - payment', extra:{ value:90, currency:'USD' } },
-  { step:'purchase',      label:'Place order',        head:'Order confirmed',    extra:{ value:90, currency:'USD' } },
-  { step:'order_details', label:'View order details', head:'Order details',      extra:{} }
-];
-
-function d1Paint(){
-  var b = document.getElementById('d1btn');
-  var hd = document.getElementById('d1head');
-  if (d1i < D1STEPS.length){
-    b.textContent = D1STEPS[d1i].label;
-    b.disabled = false;
-    hd.textContent = d1i === 0 ? 'Checkout - cart' : D1STEPS[d1i-1].head;
+/* ---- Demo 1: is the value there, and can the variable read it ---- */
+function d1(build){
+  var txn = orderId();
+  if (build === 'empty'){
+    dataLayer.push({ event:'purchase' });
+    logTo('d1log','Pushed: {event:"purchase"}\n\nOpen the Data Layer tab of this event. There is no value, no currency, no item ID - under any key.\nVerdict: the site is not sending it. No variable you build can rescue this. Screenshot the Data Layer tab and send it to the developer.', true);
+  } else if (build === 'nested'){
+    dataLayer.push({ ecommerce:null });
+    dataLayer.push({ event:'purchase', ecommerce:{
+      value:90, currency:'USD', transaction_id:txn,
+      items:[{ item_id:'SKU-1002', item_name:'Item B', price:90, quantity:1 }]
+    }});
+    logTo('d1log','Pushed: {event:"purchase", ecommerce:{value:90, currency:"USD", transaction_id:"'+txn+'", items:[{item_id:"SKU-1002", ...}]}}\n\nThe value is plainly there in the Data Layer tab. If DLV - value still reads undefined, the payload is fine and your variable path is wrong.\nCorrect paths: ecommerce.value, ecommerce.currency, ecommerce.transaction_id, ecommerce.items.0.item_id\nThat numeric 0 is how a Data Layer Variable reaches into a list.');
   } else {
-    b.textContent = 'Journey finished';
-    b.disabled = true;
-    hd.textContent = 'Order details';
+    dataLayer.push({ ecommerce:null });
+    dataLayer.push({ event:'purchase', ecommerce:{
+      value:'$90.00', currency:'USD', transaction_id:txn,
+      items:[{ item_id:'SKU-1002', item_name:'Item B', price:'$90.00', quantity:1 }]
+    }});
+    logTo('d1log','Pushed value as text: "$90.00".\n\nThe path is right and the variable resolves, so everything looks healthy. But it is a string: greater-than and less-than comparisons cannot work, and the platform revenue field will reject or mangle it.\nAsk for 90, a number, with currency in its own field.', true);
   }
 }
 
-function d1Reset(){
-  dataLayer.push({ step:null, value:null, transaction_id:null });
-  d1i = 0; d1Seen = null; d1Txn = null;
-  d1Paint();
-  logTo('d1log','Journey reset. Pushed {step:null, value:null, transaction_id:null} to clear the merged model - which is exactly the reset a developer should send between stages.');
-}
-
-function d1Next(){
-  var s = D1STEPS[d1i];
-  var data = { step: s.step };
-  for (var k in s.extra) data[k] = s.extra[k];
-  if (s.step === 'purchase'){ d1Txn = orderId(); data.transaction_id = d1Txn; }
-
-  var seen, msg;
-  if (M1 === 'broken'){
-    seen = d1Seen;
-    dataLayer.push({ event:'checkout_step' });
-    setTimeout(function(){ dataLayer.push(data); d1Seen = s.step; }, 50);
-    msg = 'Stage "' + s.step + '": pushed {event:"checkout_step"} first, then {step:"' + s.step + '"} 50ms later.\n'
-        + 'At the instant the event landed, GTM read step = ' + (seen ? '"' + seen + '"' : 'undefined')
-        + ' - the previous stage. Every event on this checkout is one step behind.';
-    if (s.step === 'purchase'){
-      msg += '\n\nThis is the real purchase, order ' + d1Txn + '. The conversion did NOT fire: the condition needed step="purchase" and GTM saw "checkout".';
+/* ---- Demo 2: which trigger type ---- */
+(function(){
+  var zone = document.getElementById('clickzone');
+  if (!zone) return;
+  zone.addEventListener('click', function(e){
+    e.preventDefault();
+    var t = e.target;
+    var anchor = t.closest ? t.closest('a') : null;
+    var ownHref = t.getAttribute ? t.getAttribute('href') : null;
+    function cell(v, missing){ return '<td class="val">'+(v ? v : '(empty)')+'</td>'; }
+    function row(label, v){
+      return '<tr class="'+(v?'':'miss')+'"><td>'+label+'</td>'+cell(v)+'</tr>';
     }
-    if (seen === 'purchase'){
-      msg += '\n\nThe conversion fires HERE instead - on "View order details" - because step="purchase" arrived late and is still sitting in the model. It carries order ' + d1Txn + ' with it.';
-    }
-    logTo('d1log', msg, true);
-  } else {
-    data.event = 'checkout_step';
-    dataLayer.push(data);
-    d1Seen = s.step;
-    msg = 'Stage "' + s.step + '": pushed as one message, {event:"checkout_step", step:"' + s.step + '"...}.\n'
-        + 'GTM read step = "' + s.step + '". Correct.';
-    if (s.step === 'purchase'){
-      msg += '\n\nThe conversion fires exactly here, once, carrying order ' + d1Txn + ' and 90.00 USD.';
-    }
-    if (s.step === 'order_details'){
-      msg += '\n\nNothing fires here - step is "order_details", so the condition fails. Which is what should happen.';
-    }
-    logTo('d1log', msg);
-  }
-  d1i++;
-  d1Paint();
-}
+    var html = ''
+      + '<tr><td>You clicked</td><td class="val">&lt;'+t.tagName.toLowerCase()
+        + (t.id ? ' id="'+t.id+'"' : '')
+        + (t.className ? ' class="'+t.className+'"' : '') + '&gt;</td></tr>'
+      + row('Click ID', t.id)
+      + row('Click Classes', t.className)
+      + row('Click Text', (t.textContent||'').trim())
+      + row('Click URL (All Elements)', ownHref)
+      + row('Click URL (Just Links)', anchor ? anchor.getAttribute('href') : '');
+    document.getElementById('clickvars').innerHTML = html;
+  });
+})();
 
-/* ---- Demo 2 ---- */
-function d2(kind){
-  if (kind === 'case'){
-    dataLayer.push({ event:'Place_Order', label:'Submit Order', price:90 });
-    logTo('d2log','Pushed event name "Place_Order" - capital P and O.\nThe trigger listens for "place_order". Nothing appears in the left rail for this trigger at all: the event name itself missed, so no condition was ever evaluated.', true);
-  } else if (kind === 'space'){
-    dataLayer.push({ event:'place_order', label:'Submit Order ', price:90 });
-    logTo('d2log','Pushed label:"Submit Order " - with a trailing space you cannot see.\nThe event appears in the rail, so it arrived. The exact-match tag does not fire. Copy the label from Preview into the console and check .length: 13, not 12.', true);
-  } else if (kind === 'currency'){
-    dataLayer.push({ event:'place_order', label:'Submit Order', price:'$90' });
-    logTo('d2log','Pushed price:"$90" as text.\nThe event arrived and the label matches, but the greater-than-50 tag does not fire: "$90" is not a number, so no numeric comparison is possible.', true);
-  } else {
-    dataLayer.push({ event:'place_order', label:'Submit Order', price:90 });
-    logTo('d2log','Pushed label:"Submit Order", price:90 (a real number).\nBoth tags fire.');
-  }
-}
-
-/* ---- Demo 3 ---- */
-function d3check(){
-  var s = dataLayer.push.toString();
-  var broken = s.indexOf('[native code]') > -1;
-  logTo('d3log', (broken
-    ? 'dataLayer.push.toString() returned:\n' + s.substring(0,90) +
-      '\n\nThat is the browser\'s own Array.push. GTM is not connected - either it never loaded, or a script replaced the array afterwards. Every push from now on is invisible.'
-    : 'dataLayer.push.toString() returned:\n' + s.substring(0,90) +
-      '...\n\nThat is real function code: GTM has replaced push with its own and is listening.'), broken);
-}
-function d3msg(t, warn){ logTo('d3log', t, warn); }
-
-/* ---- Demo 4 ---- */
-function d4native(){
-  logTo('d4log','Build A submitted. The browser fired its own submit event, so GTM\'s Form Submission trigger can see it.\nPreview shows: Form Submit, plus a form_submit event from the simulated site script (Demo 6).');
+/* ---- Demo 3: forms ---- */
+function d3native(){
+  logTo('d3log','Form A submitted. The browser fired its own submit event, so GTM\'s Form Submission trigger sees it.\nPreview: a Form Submit event appears in the left rail.');
   return false;
 }
-function d4js(){
-  logTo('d4log','Build B submitted. The page intercepted the click and sent the data itself - no native submit event ever happened.\nPreview shows nothing at all. The user still got a confirmation.', true);
+function d3js(){
+  logTo('d3log','Form B submitted. The page intercepted the click and sent the data itself - no native submit event ever happened.\nPreview: nothing. No event, no trigger, no tag. The user still got a confirmation.', true);
 }
-
-/* ---- Demo 5 ---- */
-var d5order = null;
-function d5confirmed(){
-  dataLayer.push({event:'order_confirmed', transaction_id:d5order, price:90, currency:'USD'});
-  logTo('d5log','Server-confirmed event pushed once: {event:"order_confirmed", transaction_id:"'+d5order+'", price:90, currency:"USD"}.\nOne event, one hit, and an ID the platform can deduplicate on.');
-}
-
-/* ---- Demo 6 ---- */
-function d6submit(){
-  logTo('d6log', AUTO_TRACKER_ON
-    ? 'Newsletter form submitted with the auto-tracker ON.\nPreview shows TWO things: the native Form Submit event, and a form_submit event carrying form_id and the button text - which nobody configured in GTM.'
-    : 'Newsletter form submitted with the auto-tracker OFF.\nThe native Form Submit event is unchanged. The form_submit ghost is gone. That is proof by elimination: you have just named its owner.');
+function d3ajax(){
+  var el = document.getElementById('ajax_success');
+  el.classList.remove('show');
+  setTimeout(function(){ el.classList.add('show'); }, 400);
+  logTo('d3log','Form C submitted. No reload, no native submit event - but a success message appears 400ms later.\nThat message is your signal: Element Visibility on #ajax_success, with Observe DOM changes enabled, because the element does not exist when the page loads.');
   return false;
 }
-function d6msg(on){
-  logTo('d6log', on ? 'Auto-tracker enabled. Submit the form and watch for the extra event.'
-                    : 'Auto-tracker disabled. Submit the form again - the native event stays, the ghost disappears.');
+function d3email(){
+  var v = (document.getElementById('lead_email')||{}).value || '(empty)';
+  logTo('d3log','Form A email field reads: '+v+'\n\nThis is the value the platform\'s user-provided data field would collect and hash before anything leaves the browser.\nDo not push a raw email into the dataLayer, and do not expose it through a general-purpose variable that any tag in the container can read.');
 }
 
-/* ---- Demo 7 ---- */
+/* ---- Demo 4: the tag that loses the race ---- */
+function d4go(){
+  var wait = document.getElementById('wait_toggle').checked;
+  new Image().src = 'https://postman-echo.com/delay/2?tag=outbound_click&ts=' + Date.now();
+  var go = function(){ location.href = location.pathname + '?left=1#lab'; };
+  if (wait){
+    logTo('d4log','Tag request sent, navigation held for 1 second - this is what Wait for Tags does.\nThe request has time to complete before the page unloads.');
+    setTimeout(go, 1000);
+  } else {
+    logTo('d4log','Tag request sent, navigating immediately.', true);
+    go();
+  }
+}
+(function(){
+  if (location.search.indexOf('left=1') > -1){
+    var n = document.getElementById('d4log');
+    if (n) n.innerHTML = '<span class="warn">You have just come back from the navigation. Open the Network tab with Preserve log ticked and find the request to postman-echo.\nWithout the hold it shows as (cancelled) - the browser abandoned it when the page unloaded. GTM Preview still records the tag as fired, which is why Preview alone is never proof.</span>';
+  }
+})();
+
+/* ---- Demo 5: popup ---- */
+function d5open(){
+  document.getElementById('modal_success').classList.remove('show');
+  document.getElementById('modal_overlay').classList.add('open');
+  logTo('d5log','Popup opened. Look at the address bar: unchanged. No page loaded, no Page View event, nothing for a URL-based trigger to match.');
+}
+function d5close(){
+  document.getElementById('modal_overlay').classList.remove('open');
+}
+function d5submit(){
+  document.getElementById('modal_success').classList.add('show');
+  logTo('d5log','Enquiry submitted inside the popup. The success message has just been added to the page.\nThat appearance is what Element Visibility fires on - and it only works with Observe DOM changes enabled, because the element did not exist when the page loaded.\nClose and reopen the popup to see why "once per page" versus "every time" matters.');
+  return false;
+}
+
+/* ---- Demo 6: embedded widget ---- */
 window.addEventListener('message', function(e){
-  if (e.data && e.data.type==='payment_complete'){
+  if (e.data && e.data.type === 'payment_complete'){
     var on = document.getElementById('bridge_toggle').checked;
     if (on){
-      window.dataLayer.push({event:'payment_complete', value:e.data.value, currency:e.data.currency});
-      logTo('d7log','Payment completed inside the widget, bridge ON.\nThe widget posted its result out to the parent page, which pushed {event:"payment_complete", value:50, currency:"USD"}. GTM can now act on it.');
+      window.dataLayer.push({ event:'payment_complete', value:e.data.value, currency:e.data.currency });
+      logTo('d6log','Payment completed inside the widget.\nThe widget sent its result out to the page around it, and the page pushed {event:"payment_complete", value:90, currency:"USD"} into the dataLayer. GTM can act on that.');
     } else {
-      logTo('d7log','Payment completed inside the widget, bridge OFF.\nThe payment succeeded - you can see the confirmation inside the frame. The parent page received nothing: no event, no URL change, nothing for GTM to trigger on. There is no container-side fix for this.', true);
+      logTo('d6log','Payment completed inside the widget.\nYou can see the confirmation in the frame. The page around it received nothing: no event, no URL change, nothing for any trigger to match.\nThere is no container-side fix for this. The vendor has to send it out, or you need access to the widget\'s own tracking settings.', true);
     }
   }
 });
 
-/* ---- Demo 5 network echo (two POSTs per click, visible in the Network tab) ---- */
-document.getElementById('checkout_form').addEventListener('submit', function(){
-  fetch('https://postman-echo.com/post', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({order:'demo', ts: Date.now()})});
-  if(!d5order) d5order = orderId();
-  document.getElementById('d5orderid').textContent = d5order;
-  document.getElementById('d5confirm').style.display = 'block';
-  logTo('d5log','Place Order clicked ONCE. The slow-server simulation produced a second native submit 150ms later.\nPreview: two Form Submit events. Network (filter postman-echo): two POST requests. A conversion on the submit attempt counts twice.', true);
-});
-
-/* ---- Demo 8 ---- */
-function showView(name){
-  document.querySelectorAll('#demo-spa .view').forEach(function(v){v.classList.remove('active')});
-  document.getElementById('v_'+name).classList.add('active');
-  history.pushState({},'','?view='+name);
-}
-function d8msg(t, warn){ logTo('d8log', t, warn); }
-
-/* Shows the merged dataLayer state the way GTM builds it: later pushes
-   overwrite earlier keys, so stale values survive until something resets them. */
-function showState(){
-  var model = {};
-  (window.dataLayer||[]).forEach(function(msg){
-    if (!msg || typeof msg !== 'object') return;
-    Object.keys(msg).forEach(function(k){
-      if (k === 'event' || k.indexOf('gtm.') === 0) return;
-      if (msg[k] === null) { delete model[k]; } else { model[k] = msg[k]; }
-    });
-  });
-  var out = document.getElementById('spa_state');
-  if (out) out.textContent = JSON.stringify(model, null, 2) || '{}';
-}
-
-/* ---- Demo 9 ---- */
-function d9buy(){
-  var id = orderId();
-  history.pushState({},'','?page=thank_you&order='+id);
-  document.getElementById('d9orderid').textContent = id;
-  document.getElementById('d9confirm').style.display = 'block';
-  logTo('d9log','Purchase completed. The address bar now reads ?page=thank_you&order='+id+' - but no page was loaded.\nThe URL-based conversion tag did NOT fire; only the History Change tag did. Now copy the URL and open it in an incognito window: the conversion fires there, with no purchase behind it, on the same order ID.', true);
-}
-
-/* ---- Demo 10 ---- */
-function loadDemoPixel(){
-  if (window.fbq) { logTo('d10log','Demo pixel already loaded.'); return; }
-  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-  n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
-  n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
-  t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
-  document,'script','https://connect.facebook.net/en_US/fbevents.js');
-  fbq('init','123456789');
-  fbq('track','PageView');
-  document.getElementById('load_pixel_btn').textContent='Demo pixel loaded';
-  logTo('d10log','Pixel library loaded with placeholder ID 123456789.\nOpen the Network tab and filter by facebook.com/tr. A PageView hit has already been sent - and GTM Preview shows nothing, because GTM was never involved.');
-}
-d1Paint();
-
-function d10lead(){
-  if(window.fbq){
-    fbq('track','Lead');
-    logTo('d10log','Lead event sent directly by the pixel library.\nNetwork tab, filter facebook.com/tr: the hit is there. GTM Preview: still nothing. Now click around this page and watch further events appear that nobody triggered.');
+/* ---- Demo 7: the site that never reloads ---- */
+var SPA_TITLES = { home:'Home', about:'About us', contact:'Contact us' };
+function spaGo(name){
+  document.getElementById('spa_head').textContent = SPA_TITLES[name];
+  history.pushState({}, '', '?page=' + name + '#lab');
+  var withEvent = document.getElementById('spa_event_toggle').checked;
+  if (withEvent){
+    dataLayer.push({ event:'virtual_page_view', page_path:'/' + name, page_title:SPA_TITLES[name] });
+    logTo('d7log','Navigated to "' + SPA_TITLES[name] + '".\nThe address bar changed and no document was requested - History Change fires, and the site also pushed {event:"virtual_page_view", page_path:"/'+name+'", page_title:"'+SPA_TITLES[name]+'"}.\nThis version carries its own data and arrives after the content exists. It is the one to ask developers for.');
   } else {
-    logTo('d10log','Load the demo pixel first.', true);
+    logTo('d7log','Navigated to "' + SPA_TITLES[name] + '".\nThe address bar changed and no document was requested. Container Loaded, DOM Ready and Window Loaded do not fire again - look at the top of the left rail, they appear once per visit.\nHistory Change is your only signal here, and it fires the instant the URL changes, before the new content is rendered - so anything reading the page title or content is reading the previous page.', true);
   }
 }
+
+/* ---- Demo 8: order ID off the page ---- */
+function d8push(scrape){
+  if (!scrape){
+    dataLayer.push({ ecommerce:null });
+    dataLayer.push({ event:'purchase', ecommerce:{ value:90, currency:'USD' } });
+    logTo('d8log','Pushed: {event:"purchase", ecommerce:{value:90, currency:"USD"}}\n\nNo order ID anywhere. The platform has no way to tell this apart from a reload of the same confirmation page, so every refresh is a new sale.', true);
+  } else {
+    var id = (document.getElementById('order_number')||{}).textContent || '';
+    logTo('d8log','Read from the page: document.getElementById("order_number").textContent = "'+id+'"\n\nIn GTM this is a DOM Element variable - selection method ID, element ID order_number - mapped into the tag\'s transaction ID field. No developer required.\nIt breaks the day the site changes, so log it as an interim fix with an expiry date, and keep asking for the value in the dataLayer.');
+  }
+}
+
+d1Bootstrap();
+function d1Bootstrap(){ /* nothing to paint - kept so the file has one obvious entry point */ }
 </script>
 
 </body>
