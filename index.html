@@ -187,34 +187,26 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
 
     <!-- ---------------- DEMO 1 ---------------- -->
     <div class="demo" id="demo-stale">
-      <h3>Demo 1 - The stale value (timing)</h3>
+      <h3>Demo 1 - The value that is always one step behind</h3>
       <span class="tag">Trigger evaluation</span><span class="tag sym">Reports show fewer conversions than the client's own records</span>
-      <p class="intent"><b>What you were trying to do:</b> count completed purchases and report their revenue to the ad platform.</p>
-      <p class="note">Container tag: <code>D1 - Stale value (step=checkout)</code> - Custom Event <code>demo_event</code>, condition <code>DLV step equals checkout</code>.</p>
+      <p class="intent"><b>What you were trying to do:</b> count completed purchases, using the checkout events the site already sends.</p>
+      <p class="note">Container tag: <code>D1 - Purchase (step=purchase)</code> - Custom Event <code>checkout_step</code> with condition <code>DLV step equals purchase</code>. This site pushes the same event name at every stage of the checkout and tells the stages apart with a <code>step</code> field. That is an extremely common pattern, and it is why the trigger has to read <code>step</code> at all.</p>
 
       <div class="modebar">
-        <label><input type="radio" name="m1" value="broken" checked onchange="M1=this.value"> Broken build - event pushed first, data a moment later</label>
-        <label><input type="radio" name="m1" value="fixed" onchange="M1=this.value"> Fixed build - data and event in one push</label>
+        <label><input type="radio" name="m1" value="broken" checked onchange="M1=this.value; d1Reset()"> Broken build - the event is pushed first, the step data lands a moment later</label>
+        <label><input type="radio" name="m1" value="fixed" onchange="M1=this.value; d1Reset()"> Fixed build - step data and event travel in one push</label>
       </div>
 
-      <div class="side">
-        <div class="frag">
-          <div class="frag-h">Checkout - order summary</div>
-          <div class="frow"><span>Item C <span class="sku">SKU-1003</span></span><span>250.00</span></div>
-          <div class="frow"><span>Quantity</span><span>1</span></div>
-          <div class="frow total"><span>Total</span><span class="amt">250.00 USD</span></div>
-          <button class="act" onclick="d1Order()">Place order</button>
-        </div>
-        <div class="frag">
-          <div class="frag-h">Afterwards - the customer browses on</div>
-          <div class="frow"><span>Item A <span class="sku">SKU-1001</span></span><span>50.00</span></div>
-          <div class="frow total"><span>Price</span><span class="amt">50.00 USD</span></div>
-          <button class="act plain" onclick="d1Second()">Add to cart</button>
-        </div>
+      <div class="frag">
+        <div class="frag-h" id="d1head">Checkout - cart</div>
+        <div class="frow"><span>Item B <span class="sku">SKU-1002</span></span><span>90.00</span></div>
+        <div class="frow total"><span>Total</span><span class="amt">90.00 USD</span></div>
+        <button class="act" id="d1btn" onclick="d1Next()">Start checkout</button>
+        <button class="act plain" onclick="d1Reset()">Start over</button>
       </div>
 
-      <div class="log" id="d1log">Nothing pushed yet.</div>
-      <div class="expect">Broken build, Place order: the condition reads <code>undefined</code>, the tag stays silent, the 250.00 order is never counted. Then Add to cart: the tag fires on an action that sent no data at all, and reports <b>250.00</b> - the previous order's money attached to a 50.00 product. Switch to the fixed build and the order counts once, correctly. Rule: data first, event last.</div>
+      <div class="log" id="d1log">Walk the checkout one click at a time. After each click, read what GTM actually saw.</div>
+      <div class="expect">Broken build: every event carries the <b>previous</b> stage's data, because the event is pushed before the data. At <b>Place order</b> GTM still sees <code>step = payment</code>, so the purchase does not count. One click later, on <b>View order details</b> - something every customer does - GTM finally sees <code>step = purchase</code> and fires the conversion there, on the wrong action and with the order ID attached. The client's records show a sale; your report does not, and a conversion appears against a page view instead. Switch to the fixed build and walk it again: the conversion fires once, at the purchase, and nowhere else.</div>
     </div>
 
     <!-- ---------------- DEMO 2 ---------------- -->
@@ -222,13 +214,13 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
       <h3>Demo 2 - Exact matching traps</h3>
       <span class="tag">Trigger evaluation</span><span class="tag sym">The tag does not fire while the setup looks correct</span>
       <p class="intent"><b>What you were trying to do:</b> fire the conversion only on the real order button, and only for orders above a value threshold.</p>
-      <p class="note">Container tags: <code>D2a - Label exact match</code> (<code>label equals Submit Order</code>), <code>D2b - Price greater than 50</code>, <code>D2c - Any demo_event (case control)</code>.</p>
+      <p class="note">Container tags: <code>D2a - Label exact match</code> (Custom Event <code>place_order</code>, condition <code>label equals Submit Order</code>) and <code>D2b - Price above threshold</code> (same event, condition <code>price greater than 50</code>).</p>
 
       <div class="frag">
         <div class="frag-h">Checkout - confirm order</div>
         <div class="frow"><span>Item B <span class="sku">SKU-1002</span></span><span>90.00</span></div>
         <div class="frow total"><span>Total</span><span class="amt">90.00 USD</span></div>
-        <p class="note" style="margin:10px 0 4px">Four builds of the same button. On screen they are identical.</p>
+        <p class="note" style="margin:10px 0 4px">Four builds of the same order button. On screen they are identical.</p>
         <button class="act bad" onclick="d2('case')">Build 1 - Submit Order</button>
         <button class="act bad" onclick="d2('space')">Build 2 - Submit Order</button>
         <button class="act bad" onclick="d2('currency')">Build 3 - Submit Order</button>
@@ -236,7 +228,7 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
       </div>
 
       <div class="log" id="d2log">Nothing pushed yet.</div>
-      <div class="expect">Build 1 sends the event name in the wrong case, so nothing fires at all - not even the control tag. Builds 2 and 3 arrive (control fires) but their conditions fail: a trailing space you cannot see, and a price sent as text with a currency symbol. Build 4 fires everything. To prove the space: copy the label out of Preview into the console and compare <code>.length</code> - 13 against 12.</div>
+      <div class="expect">Build 1 sends the event name with different capitalisation - nothing appears in Preview's left rail at all, because the trigger never matched the event. Builds 2 and 3 do appear in the rail, so you know the event arrived: their conditions are what fail, on a trailing space you cannot see and on a price sent as text with a currency symbol. Build 4 fires both tags. To prove the space: copy the label out of Preview into the console and compare <code>.length</code> - 13 against 12.</div>
     </div>
 
     <!-- ---------------- DEMO 3 ---------------- -->
@@ -741,7 +733,7 @@ function route(){
 }
 
 window.addEventListener('hashchange', route);
-renderCards(); route();
+renderCards(); route(); d1Paint();
 
 /* header SOP link */
 (function(){
@@ -780,37 +772,90 @@ function logTo(id, text, warn){
 }
 function orderId(){ return 'ORD-' + String(Date.now()).slice(-6); }
 
-/* ---- Demo 1 ---- */
-var M1='broken';
-function d1Order(){
-  if(M1==='broken'){
-    dataLayer.push({event:'demo_event'});
-    setTimeout(function(){ dataLayer.push({step:'checkout', price:250, item_id:'SKU-1003'}); }, 50);
-    logTo('d1log','Broken build. Pushed {event:"demo_event"} first, then {step:"checkout", price:250, item_id:"SKU-1003"} 50ms later.\nThe trigger checked for step at the moment the event landed and found nothing. The 250.00 order was NOT counted.', true);
+/* ---- Demo 1: multi-step checkout, one event name, distinguished by step ---- */
+var M1 = 'broken', d1i = 0, d1Seen = null, d1Txn = null;
+var D1STEPS = [
+  { step:'cart',          label:'Start checkout',       head:'Checkout - cart',          extra:{ value:90, currency:'USD' } },
+  { step:'shipping',      label:'Continue to shipping', head:'Checkout - shipping',      extra:{} },
+  { step:'payment',       label:'Continue to payment',  head:'Checkout - payment',       extra:{} },
+  { step:'purchase',      label:'Place order',          head:'Order confirmed',          extra:{ value:90, currency:'USD' } },
+  { step:'order_details', label:'View order details',   head:'Order details',            extra:{} }
+];
+
+function d1Paint(){
+  var b = document.getElementById('d1btn');
+  var hd = document.getElementById('d1head');
+  if (d1i < D1STEPS.length){
+    b.textContent = D1STEPS[d1i].label;
+    b.disabled = false;
+    hd.textContent = d1i === 0 ? 'Checkout - cart' : D1STEPS[d1i-1].head;
   } else {
-    dataLayer.push({event:'demo_event', step:'checkout', price:250, item_id:'SKU-1003'});
-    logTo('d1log','Fixed build. Pushed {event:"demo_event", step:"checkout", price:250, item_id:"SKU-1003"} as one message.\nThe tag fires and reports 250.00 USD for SKU-1003.');
+    b.textContent = 'Journey finished';
+    b.disabled = true;
+    hd.textContent = 'Order details';
   }
 }
-function d1Second(){
-  dataLayer.push({event:'demo_event'});
-  logTo('d1log','Add to cart on Item A. Pushed {event:"demo_event"} only - no step, no price, no item.\nIn the broken build the leftover step="checkout" is still in the merged model, so the tag fires now, and reports price 250.00 - money that belongs to the previous order, attached to a 50.00 product.', true);
+
+function d1Reset(){
+  dataLayer.push({ step:null, value:null, transaction_id:null });
+  d1i = 0; d1Seen = null; d1Txn = null;
+  d1Paint();
+  logTo('d1log','Journey reset. Pushed {step:null, value:null, transaction_id:null} to clear the merged model - which is exactly the reset a developer should send between stages.');
+}
+
+function d1Next(){
+  var s = D1STEPS[d1i];
+  var data = { step: s.step };
+  for (var k in s.extra) data[k] = s.extra[k];
+  if (s.step === 'purchase'){ d1Txn = orderId(); data.transaction_id = d1Txn; }
+
+  var seen, msg;
+  if (M1 === 'broken'){
+    seen = d1Seen;
+    dataLayer.push({ event:'checkout_step' });
+    setTimeout(function(){ dataLayer.push(data); d1Seen = s.step; }, 50);
+    msg = 'Stage "' + s.step + '": pushed {event:"checkout_step"} first, then {step:"' + s.step + '"} 50ms later.\n'
+        + 'At the instant the event landed, GTM read step = ' + (seen ? '"' + seen + '"' : 'undefined')
+        + ' - the previous stage. Every event on this checkout is one step behind.';
+    if (s.step === 'purchase'){
+      msg += '\n\nThis is the real purchase, order ' + d1Txn + '. The conversion did NOT fire: the condition needed step="purchase" and GTM saw "payment".';
+    }
+    if (seen === 'purchase'){
+      msg += '\n\nThe conversion fires HERE instead - on "View order details" - because step="purchase" arrived late and is still sitting in the model. It carries order ' + d1Txn + ' with it.';
+    }
+    logTo('d1log', msg, true);
+  } else {
+    data.event = 'checkout_step';
+    dataLayer.push(data);
+    d1Seen = s.step;
+    msg = 'Stage "' + s.step + '": pushed as one message, {event:"checkout_step", step:"' + s.step + '"...}.\n'
+        + 'GTM read step = "' + s.step + '". Correct.';
+    if (s.step === 'purchase'){
+      msg += '\n\nThe conversion fires exactly here, once, carrying order ' + d1Txn + ' and 90.00 USD.';
+    }
+    if (s.step === 'order_details'){
+      msg += '\n\nNothing fires here - step is "order_details", so the condition fails. Which is what should happen.';
+    }
+    logTo('d1log', msg);
+  }
+  d1i++;
+  d1Paint();
 }
 
 /* ---- Demo 2 ---- */
 function d2(kind){
-  if(kind==='case'){
-    dataLayer.push({event:'Demo_Event', label:'Submit Order', price:90});
-    logTo('d2log','Pushed event name "Demo_Event" (capital D and E).\nThe Custom Event trigger listens for "demo_event". Nothing fires - not even the control tag. The event name itself missed.', true);
-  } else if(kind==='space'){
-    dataLayer.push({event:'demo_event', label:'Submit Order ', price:90});
-    logTo('d2log','Pushed label:"Submit Order " - with a trailing space you cannot see.\nControl tag fires, so the event arrived. The exact-match tag does not. Copy the label from Preview into the console and check .length: 13, not 12.', true);
-  } else if(kind==='currency'){
-    dataLayer.push({event:'demo_event', label:'Submit Order', price:'$90'});
-    logTo('d2log','Pushed price:"$90" as text.\nControl tag fires. The greater-than-50 tag does not: "$90" is not a number, so a numeric comparison cannot be made.', true);
+  if (kind === 'case'){
+    dataLayer.push({ event:'Place_Order', label:'Submit Order', price:90 });
+    logTo('d2log','Pushed event name "Place_Order" - capital P and O.\nThe trigger listens for "place_order". Nothing appears in the left rail for this trigger at all: the event name itself missed, so no condition was ever evaluated.', true);
+  } else if (kind === 'space'){
+    dataLayer.push({ event:'place_order', label:'Submit Order ', price:90 });
+    logTo('d2log','Pushed label:"Submit Order " - with a trailing space you cannot see.\nThe event appears in the rail, so it arrived. The exact-match tag does not fire. Copy the label from Preview into the console and check .length: 13, not 12.', true);
+  } else if (kind === 'currency'){
+    dataLayer.push({ event:'place_order', label:'Submit Order', price:'$90' });
+    logTo('d2log','Pushed price:"$90" as text.\nThe event arrived and the label matches, but the greater-than-50 tag does not fire: "$90" is not a number, so no numeric comparison is possible.', true);
   } else {
-    dataLayer.push({event:'demo_event', label:'Submit Order', price:90});
-    logTo('d2log','Pushed label:"Submit Order", price:90 (a real number).\nAll three tags fire.');
+    dataLayer.push({ event:'place_order', label:'Submit Order', price:90 });
+    logTo('d2log','Pushed label:"Submit Order", price:90 (a real number).\nBoth tags fire.');
   }
 }
 
