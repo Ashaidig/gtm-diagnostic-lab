@@ -27,6 +27,10 @@ var GTM_ID = (function(){
 /* Main SOP link - shown in the header. Replace '#' once published on Slite. */
 var SOP_MAIN = '#';
 
+/* Answer-key container export. Put the .json in this repo and set the filename
+   here, e.g. 'gtm-diagnostic-lab.json'. Leave empty to hide the download. */
+var CONTAINER_JSON = '';
+
 /* Per-verdict SOP sections. Replace '#' with the Slite section URLs. */
 var SOP = {
   autopsy:     '#',   // Run the 60-second trigger autopsy
@@ -104,6 +108,7 @@ button.act:hover { background:var(--ink); }
 button.act.bad { background:var(--red); }
 button.act.good { background:var(--ink); }
 button.act.plain { background:#666; }
+a.act { display:inline-block; text-decoration:none; }
 input[type=text],input[type=email] { padding:8px; border:1px solid #ccc; border-radius:8px; margin:4px 6px 4px 0; font-size:13px; }
 .expect { background:var(--gray); border-left:4px solid var(--blue); padding:9px 12px; font-size:12.5px; margin-top:10px; border-radius:0 8px 8px 0; }
 .view { display:none; }
@@ -150,6 +155,16 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
 .modal h4 { margin:0 0 10px; font-size:17px; color:var(--blue); font-family:"Barlow Semi Condensed",Arial,sans-serif; }
 .ok-msg { display:none; background:var(--lime); color:var(--ink); border-radius:8px; padding:8px 10px; margin-top:10px; font-weight:bold; font-size:13px; }
 .ok-msg.show { display:block; }
+p.watch { font-size:13px; color:#222; background:var(--gray); border-left:4px solid var(--ink); padding:9px 12px; border-radius:0 8px 8px 0; margin:10px 0; }
+details.answer { margin-top:12px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+details.answer > summary { cursor:pointer; padding:10px 13px; font-size:13px; font-weight:bold; color:var(--blue); list-style:none; }
+details.answer > summary::-webkit-details-marker { display:none; }
+details.answer > summary::before { content:"+  "; }
+details.answer[open] > summary::before { content:"-  "; }
+details.answer > summary:hover { background:var(--gray); }
+details.answer .expect { margin:0 13px 13px; }
+#answerkey { background:#fff; border:1px solid var(--line); border-left:5px solid var(--ink); border-radius:0 8px 8px 0; padding:12px 15px; margin:12px 0 4px; font-size:13px; }
+#answerkey a { color:var(--blue); font-weight:bold; }
 </style>
 </head>
 <body>
@@ -184,14 +199,16 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
   <!-- ======================= DEMO LAB ======================= -->
   <div id="view-lab" style="display:none">
     <div class="section-title">Demo lab - reproduce every failure on purpose</div>
-    <p style="font-size:13px;color:#555">Open GTM Preview on this page first. Each demo is a minimal fragment of a real website. Where a product is involved it is always <b>Item B - SKU-1002 - 90.00 USD</b>, so a value turning up where it does not belong is recognisable.</p>
+    <p style="font-size:13px;color:#555">Each demo is a minimal fragment of a real website with one thing wrong with it. Nothing here tells you what to build - that is the exercise. Work out the trigger and the variables yourself, then open the explanation to check your answer. Where a product is involved it is always <b>Item B - SKU-1002 - 90.00 USD</b>.</p>
+    <p style="font-size:13px;color:#555">Enter your own sandbox container ID in the bar at the top of the page, open GTM Preview on this page, and build as you go.</p>
+    <div id="answerkey"></div>
 
     <!-- ---------------- DEMO 1 ---------------- -->
     <div class="demo" id="demo-value">
       <h3>Demo 1 - Is the value even there?</h3>
       <span class="tag">dataLayer</span><span class="tag sym">Revenue is empty or wrong in the platform</span>
       <p class="intent"><b>What you were trying to do:</b> send the purchase value, currency and item ID to the platform.</p>
-      <p class="note">Container tag: <code>D1 - Purchase</code> - Custom Event <code>purchase</code>, no conditions. Variables to build: <code>DLV - value</code>, then <code>DLV - ecommerce.value</code> and <code>DLV - ecommerce.items.0.item_id</code>.</p>
+      <p class="watch"><b>What to watch:</b> Run each build in turn. For each one, open that event in Preview, look in the <b>Data Layer</b> tab for the value, then look in the <b>Variables</b> tab at what your variable returns. The two together tell you whose problem it is.</p>
 
       <div class="frag">
         <div class="frag-h">Checkout - place order</div>
@@ -203,10 +220,11 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
       </div>
 
       <div class="log" id="d1log">Nothing pushed yet.</div>
+      <details class="answer"><summary>Show the explanation</summary>
       <div class="expect">One question separates the two common causes: <b>open the Data Layer tab of that event and look for the value under any key.</b><br><br>
       Build A - it is not there at all. The site is not sending it. Nothing in the container can fix that; screenshot the Data Layer tab and send it to the developer.<br>
       Build B - it is plainly there, but <code>DLV - value</code> reads <code>undefined</code>, because the value is nested. Your variable path is wrong and you fix it yourself: <code>DLV - ecommerce.value</code>. The item ID needs an array index: <code>DLV - ecommerce.items.0.item_id</code> - that numeric <code>0</code> is how a Data Layer Variable reaches into a list.<br>
-      Build C - the value is there and the path is right, but it arrives as <code>"$90.00"</code>. It will pass an equals check and break every numeric comparison and revenue field downstream.</div>
+      Build C - the value is there and the path is right, but it arrives as <code>"$90.00"</code>. It will pass an equals check and break every numeric comparison and revenue field downstream.</div></details>
     </div>
 
     <!-- ---------------- DEMO 2 ---------------- -->
@@ -214,7 +232,7 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
       <h3>Demo 2 - Which trigger type, and why</h3>
       <span class="tag">Listeners</span><span class="tag sym">The click trigger fires sometimes, or not at all</span>
       <p class="intent"><b>What you were trying to do:</b> track clicks on a call-to-action, a phone number and an email address.</p>
-      <p class="note">Container tags: <code>D2a - CTA by Click ID</code> (All Elements, <code>Click ID equals cta_quote</code>), <code>D2b - CTA by CSS selector</code> (All Elements, <code>Click Element matches CSS selector #cta_quote, #cta_quote *</code>), <code>D2c - Phone link</code> and <code>D2d - Email link</code> (Just Links, <code>Click URL contains tel:</code> / <code>mailto:</code>).</p>
+      <p class="watch"><b>What to watch:</b> Click the coloured circle inside the first button, then click its text. Compare every row of the table. Then click the text inside <b>Book a demo</b>, and the phone and email links.</p>
 
       <div class="frag wide">
         <div class="frag-h">Contact bar</div>
@@ -229,9 +247,10 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
         <table class="vars" id="clickvars"><tr><td colspan="2" style="color:#888">Click something above.</td></tr></table>
       </div>
 
+      <details class="answer"><summary>Show the explanation</summary>
       <div class="expect">Clicking the coloured circle inside the button means the clicked element is the <code>&lt;span&gt;</code>, not the button - so <code>Click ID</code> comes back empty and <code>D2a</code> does not fire, while <code>D2b</code> does, because the CSS selector <code>#cta_quote, #cta_quote *</code> matches the button and everything inside it. That is the single most common reason a click trigger "works sometimes".<br><br>
       On the links: with <b>All Elements</b>, clicking the text inside <code>Book a demo</code> gives an empty <code>Click URL</code>, because the <code>&lt;span&gt;</code> has no <code>href</code>. <b>Just Links</b> resolves to the anchor and gives you the URL every time - which is why phone and email tracking should always use Just Links with <code>Click URL contains tel:</code> or <code>mailto:</code>, never All Elements plus Click Text.<br><br>
-      Navigation is prevented here so the page stays put; on a real site, see Demo 4.</div>
+      Navigation is prevented here so the page stays put; on a real site, see Demo 4.</div></details>
     </div>
 
     <!-- ---------------- DEMO 3 ---------------- -->
@@ -239,7 +258,7 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
       <h3>Demo 3 - Three forms, three different triggers</h3>
       <span class="tag">Listeners</span><span class="tag sym">The form works, but no lead is recorded</span>
       <p class="intent"><b>What you were trying to do:</b> count qualified leads, and pass the email address for enhanced conversions.</p>
-      <p class="note">Container tags: <code>D3a - Native form submit</code> (Form Submission trigger) and <code>D3b - AJAX success visible</code> (Element Visibility on <code>#ajax_success</code>, <b>Observe DOM changes</b> enabled).</p>
+      <p class="watch"><b>What to watch:</b> Submit all three forms. After each one, look at Preview’s left rail, and look at what the form left behind on the page.</p>
 
       <div class="side">
         <div class="frag">
@@ -271,9 +290,10 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
 
       <button class="act plain" onclick="d3email()">Show what enhanced conversions would read from Form A</button>
       <div class="log" id="d3log">Nothing submitted yet.</div>
+      <details class="answer"><summary>Show the explanation</summary>
       <div class="expect">Form A fires GTM's Form Submission trigger. Form B fires nothing at all - the user gets a confirmation, GTM sees silence, and this is the most common reason a lead form "is not tracking". Form C also fires nothing on submit, but it reveals a success message, so Element Visibility on that message with <b>Observe DOM changes</b> enabled is your trigger.<br><br>
       For B and C the better fix is still to ask for a dataLayer event on confirmed submission. Element Visibility is what you use while you wait, or when nobody will build it.<br><br>
-      <b>On the email:</b> read it into the platform's user-provided data field, which hashes it before anything leaves the browser. Do not push a raw email address into the dataLayer, and do not put it in a general-purpose variable other tags can read.</div>
+      <b>On the email:</b> read it into the platform's user-provided data field, which hashes it before anything leaves the browser. Do not push a raw email address into the dataLayer, and do not put it in a general-purpose variable other tags can read.</div></details>
     </div>
 
     <!-- ---------------- DEMO 4 ---------------- -->
@@ -281,18 +301,19 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
       <h3>Demo 4 - The tag that loses the race</h3>
       <span class="tag">Tag execution</span><span class="tag sym">Preview says the tag fired, but nothing was sent</span>
       <p class="intent"><b>What you were trying to do:</b> count clicks on an outbound link that immediately leaves the page.</p>
-      <p class="note">Container tag: <code>D4 - Outbound link</code> on a Just Links trigger. Build it twice: once with <b>Wait for Tags</b> off, once on.</p>
+      <p class="watch"><b>What to watch:</b> Open the <b>Network</b> tab and tick <b>Preserve log</b>. Click once with the box unticked, come back, then click again with it ticked. Compare the status of the outgoing request each time.</p>
 
       <div class="frag">
         <div class="frag-h">Resources</div>
         <p class="note" style="margin:0 0 8px">Open the Network tab and tick <b>Preserve log</b> before clicking, or you will lose the evidence in the reload.</p>
         <label class="toggle"><input type="checkbox" id="wait_toggle"> hold the navigation for 1 second (what <b>Wait for Tags</b> does)</label><br>
-        <button class="act" style="margin-top:10px" onclick="d4go()">Download the brochure</button>
+        <a class="act" id="d4link" style="margin-top:10px" href="?left=1#lab" onclick="return d4click(event)">Download the brochure</a>
       </div>
 
       <div class="log" id="d4log">Nothing clicked yet.</div>
+      <details class="answer"><summary>Show the explanation</summary>
       <div class="expect">Unticked: the request the tag sends is still in flight when the browser unloads the page, so it appears in the Network tab as <b>(cancelled)</b> and nothing reaches the platform - while GTM Preview happily records the tag as fired. Ticked: the navigation is held back, the request completes, and the same click is counted.<br><br>
-      In the container this is the <b>Wait for Tags</b> option on Click and Form triggers, with a max wait of one to two seconds. On forms, pair it with <b>Check Validation</b> so you do not count submissions the form itself rejects. This is one of the few tracking problems you can fix entirely on your own, in about a minute.</div>
+      In the container this is the <b>Wait for Tags</b> option on Click and Form triggers, with a max wait of one to two seconds. On forms, pair it with <b>Check Validation</b> so you do not count submissions the form itself rejects. This is one of the few tracking problems you can fix entirely on your own, in about a minute.</div></details>
     </div>
 
     <!-- ---------------- DEMO 5 ---------------- -->
@@ -300,7 +321,7 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
       <h3>Demo 5 - The popup nobody can see</h3>
       <span class="tag">Environments</span><span class="tag sym">It works on the page but not in the popup</span>
       <p class="intent"><b>What you were trying to do:</b> count enquiries submitted through the modal that opens on the page.</p>
-      <p class="note">Container tag: <code>D5 - Popup enquiry</code> - Element Visibility on <code>#modal_success</code>, selection method ID, <b>Observe DOM changes</b> enabled, fire on every appearance.</p>
+      <p class="watch"><b>What to watch:</b> Open the popup and submit it, watching the address bar and Preview’s left rail. Then close it and do it again.</p>
 
       <div class="frag">
         <div class="frag-h">Landing page</div>
@@ -309,9 +330,10 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
       </div>
 
       <div class="log" id="d5log">Popup not opened yet.</div>
+      <details class="answer"><summary>Show the explanation</summary>
       <div class="expect">The popup is part of the same page, so the URL never changes, no page loads, and no page-load trigger will ever fire inside it. A click trigger on the button counts people who opened the popup, not people who completed it.<br><br>
       The success message is the only honest signal available without a developer, and Element Visibility is the trigger built for it. <b>Observe DOM changes</b> is essential here: the message does not exist when the page loads, so without that option GTM never looks again.<br><br>
-      Close and reopen the popup to see why the "once per page" setting matters.</div>
+      Close and reopen the popup to see why the "once per page" setting matters.</div></details>
     </div>
 
     <!-- ---------------- DEMO 6 ---------------- -->
@@ -319,7 +341,7 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
       <h3>Demo 6 - The embedded widget</h3>
       <span class="tag">Environments</span><span class="tag sym">The payment succeeds and nothing is tracked</span>
       <p class="intent"><b>What you were trying to do:</b> track completed payments made inside the embedded widget.</p>
-      <p class="note">Container tag: <code>D6 - Widget payment</code> - Custom Event <code>payment_complete</code>.</p>
+      <p class="watch"><b>What to watch:</b> Pay once with the box ticked and once unticked. Each time, watch what reaches the page around the widget.</p>
 
       <div class="frag wide">
         <div class="frag-h">Payment page</div>
@@ -339,9 +361,10 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
 
       <label class="toggle"><input type="checkbox" id="bridge_toggle" checked> the widget sends its result out to the page around it</label>
       <div class="log" id="d6log">Nothing paid yet.</div>
+      <details class="answer"><summary>Show the explanation</summary>
       <div class="expect">An iframe is a separate document. Your container lives on the page around it and cannot see in: no clicks, no form submits, no URL change, nothing.<br><br>
       There are only three ways this is ever solved. <b>One:</b> the widget sends its result out to the parent page and the page pushes it to the dataLayer - the tick box above. <b>Two:</b> you own the content of the iframe and can put a push inside it, which is true for your own subdomains and almost never true for a third-party widget. <b>Three:</b> neither, in which case there is no container-side fix and the answer to the client is that the vendor has to provide it.<br><br>
-      Untick the box and pay again: the payment succeeds in front of you and the page around it learns nothing.</div>
+      Untick the box and pay again: the payment succeeds in front of you and the page around it learns nothing.</div></details>
     </div>
 
     <!-- ---------------- DEMO 7 ---------------- -->
@@ -349,7 +372,7 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
       <h3>Demo 7 - The site that never reloads</h3>
       <span class="tag">Environments</span><span class="tag sym">Only the first page is ever counted</span>
       <p class="intent"><b>What you were trying to do:</b> count page views across the site.</p>
-      <p class="note">Container tags: <code>D7a - History Change</code> (History Change trigger, <code>History Source equals pushState</code>) and <code>D7b - Route change event</code> (Custom Event <code>virtual_page_view</code>).</p>
+      <p class="watch"><b>What to watch:</b> Open the <b>Network</b> tab, filter by <b>Doc</b>, tick <b>Preserve log</b>, then click through the menu. Watch the address bar, and watch the top of Preview’s left rail.</p>
 
       <div class="frag wide">
         <div class="frag-h" id="spa_head">Home</div>
@@ -361,9 +384,10 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
       </div>
 
       <div class="log" id="d7log">No navigation yet.</div>
+      <details class="answer"><summary>Show the explanation</summary>
       <div class="expect">Open the Network tab, filter by <b>Doc</b>, tick Preserve log, and click through the menu: the address changes and no new document is ever requested. That two-minute test is how you identify this on any site, whatever it is built with.<br><br>
       In Preview, Container Loaded, DOM Ready and Window Loaded appear once at the very top and never again, so a pageview tag on any of them counts one view per visit no matter how far the user goes. History Change catches the rest.<br><br>
-      With the tick box off you get only the URL change - History Change fires the moment the address updates, before the new content exists, so anything reading the page title or content is reading the previous page. With it on, the site announces the route itself and carries its own data, which is the version to ask developers for. The same lesson applies to values: on a site that never reloads, nothing clears the dataLayer between views, so data pushed for one view survives into the next unless something resets it.</div>
+      With the tick box off you get only the URL change - History Change fires the moment the address updates, before the new content exists, so anything reading the page title or content is reading the previous page. With it on, the site announces the route itself and carries its own data, which is the version to ask developers for. The same lesson applies to values: on a site that never reloads, nothing clears the dataLayer between views, so data pushed for one view survives into the next unless something resets it.</div></details>
     </div>
 
     <!-- ---------------- DEMO 8 ---------------- -->
@@ -371,7 +395,7 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
       <h3>Demo 8 - Getting an order ID when nobody will give you one</h3>
       <span class="tag">User action</span><span class="tag sym">The same purchase is counted more than once</span>
       <p class="intent"><b>What you were trying to do:</b> count each purchase once, which means every conversion needs a unique order ID.</p>
-      <p class="note">Container tag: <code>D8 - Purchase with scraped order ID</code> - Custom Event <code>purchase</code>, order ID read by a <b>DOM Element</b> variable (selection method ID, element ID <code>order_number</code>).</p>
+      <p class="watch"><b>What to watch:</b> Push the purchase without an ID and look at what the platform would receive. Then find the order number on the page and work out how you would get it into the tag.</p>
 
       <div class="frag">
         <div class="frag-h">Thank you for your order</div>
@@ -383,9 +407,10 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
       </div>
 
       <div class="log" id="d8log">Nothing pushed yet.</div>
+      <details class="answer"><summary>Show the explanation</summary>
       <div class="expect">Without an ID the platform cannot tell a reload, a bookmark or a shared link from a new sale, so the count drifts upward and nobody can explain it. The number is printed on the page in front of you - which means you can read it without anyone's help.<br><br>
       Build a <b>DOM Element</b> variable with selection method <b>ID</b> and element ID <code>order_number</code>, then map it into the tag's transaction ID field. The <a href="https://chromewebstore.google.com/detail/gtm-variable-builder/feeboihdgpananoagfmbohoogoncndba" target="_blank">GTM Variable Builder</a> extension will generate the selector for you if the element has no ID.<br><br>
-      <b>Its limits, which you must say out loud to the client.</b> Scraping breaks the day the site changes, so it is an interim fix with an expiry date, not a solution. And it only works where you can put a container: if the purchase completes on a payment provider's own domain, or there is no confirmation page at all, there is nothing to scrape. In those two cases your options are a return URL carrying the order parameters, the payment provider's own tracking, or a server-side integration - and none of them are container work.</div>
+      <b>Its limits, which you must say out loud to the client.</b> Scraping breaks the day the site changes, so it is an interim fix with an expiry date, not a solution. And it only works where you can put a container: if the purchase completes on a payment provider's own domain, or there is no confirmation page at all, there is nothing to scrape. In those two cases your options are a return URL carrying the order parameters, the payment provider's own tracking, or a server-side integration - and none of them are container work.</div></details>
     </div>
   </div>
 
@@ -705,6 +730,15 @@ function route(){
 window.addEventListener('hashchange', route);
 renderCards(); route();
 
+/* answer-key container download */
+(function(){
+  var n = document.getElementById('answerkey');
+  if (!n) return;
+  n.innerHTML = CONTAINER_JSON
+    ? 'Stuck, or want to compare against a finished version? <a href="' + CONTAINER_JSON + '" download>Download the answer-key container</a> and import it into a <b>new workspace</b> (Admin - Import Container - Merge - Create new workspace). Never overwrite an existing one.'
+    : 'An answer-key container export will be linked here once it is added to the repository. Until then, build each demo yourself and check against the explanation on the card.';
+})();
+
 /* header SOP link */
 (function(){
   var a=document.getElementById('sop-main-link');
@@ -812,17 +846,16 @@ function d3email(){
 }
 
 /* ---- Demo 4: the tag that loses the race ---- */
-function d4go(){
-  var wait = document.getElementById('wait_toggle').checked;
+function d4click(e){
   new Image().src = 'https://postman-echo.com/delay/2?tag=outbound_click&ts=' + Date.now();
-  var go = function(){ location.href = location.pathname + '?left=1#lab'; };
-  if (wait){
-    logTo('d4log','Tag request sent, navigation held for 1 second - this is what Wait for Tags does.\nThe request has time to complete before the page unloads.');
-    setTimeout(go, 1000);
-  } else {
-    logTo('d4log','Tag request sent, navigating immediately.', true);
-    go();
+  if (document.getElementById('wait_toggle').checked){
+    e.preventDefault();
+    logTo('d4log','Request sent, navigation held for 1 second - this is what Wait for Tags does on the trigger.\nThe request has time to finish before the page unloads.');
+    setTimeout(function(){ location.href = 'index.html?left=1#lab'; }, 1000);
+    return false;
   }
+  logTo('d4log','Request sent, navigating immediately.', true);
+  return true;
 }
 (function(){
   if (location.search.indexOf('left=1') > -1){
