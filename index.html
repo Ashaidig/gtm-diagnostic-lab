@@ -206,7 +206,7 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
       </div>
 
       <div class="log" id="d1log">Walk the checkout one click at a time. After each click, read what GTM actually saw.</div>
-      <div class="expect">Broken build: every event carries the <b>previous</b> stage's data, because the event is pushed before the data. At <b>Place order</b> GTM still sees <code>step = payment</code>, so the purchase does not count. One click later, on <b>View order details</b> - something every customer does - GTM finally sees <code>step = purchase</code> and fires the conversion there, on the wrong action and with the order ID attached. The client's records show a sale; your report does not, and a conversion appears against a page view instead. Switch to the fixed build and walk it again: the conversion fires once, at the purchase, and nowhere else.</div>
+      <div class="expect">Broken build: every event carries the <b>previous</b> stage's data, because the event is pushed before the data. At <b>Place order</b> GTM still sees <code>step = checkout</code>, so the purchase does not count. One click later, on <b>View order details</b> - something every customer does - GTM finally sees <code>step = purchase</code> and fires the conversion there, on the wrong action and with the order ID attached. The client's records show a sale; your report does not, and a conversion appears against a page view instead. Switch to the fixed build and walk it again: the conversion fires once, at the purchase, and nowhere else.</div>
     </div>
 
     <!-- ---------------- DEMO 2 ---------------- -->
@@ -733,7 +733,7 @@ function route(){
 }
 
 window.addEventListener('hashchange', route);
-renderCards(); route(); d1Paint();
+renderCards(); route();
 
 /* header SOP link */
 (function(){
@@ -775,11 +775,9 @@ function orderId(){ return 'ORD-' + String(Date.now()).slice(-6); }
 /* ---- Demo 1: multi-step checkout, one event name, distinguished by step ---- */
 var M1 = 'broken', d1i = 0, d1Seen = null, d1Txn = null;
 var D1STEPS = [
-  { step:'cart',          label:'Start checkout',       head:'Checkout - cart',          extra:{ value:90, currency:'USD' } },
-  { step:'shipping',      label:'Continue to shipping', head:'Checkout - shipping',      extra:{} },
-  { step:'payment',       label:'Continue to payment',  head:'Checkout - payment',       extra:{} },
-  { step:'purchase',      label:'Place order',          head:'Order confirmed',          extra:{ value:90, currency:'USD' } },
-  { step:'order_details', label:'View order details',   head:'Order details',            extra:{} }
+  { step:'checkout',      label:'Start checkout',     head:'Checkout - payment', extra:{ value:90, currency:'USD' } },
+  { step:'purchase',      label:'Place order',        head:'Order confirmed',    extra:{ value:90, currency:'USD' } },
+  { step:'order_details', label:'View order details', head:'Order details',      extra:{} }
 ];
 
 function d1Paint(){
@@ -818,7 +816,7 @@ function d1Next(){
         + 'At the instant the event landed, GTM read step = ' + (seen ? '"' + seen + '"' : 'undefined')
         + ' - the previous stage. Every event on this checkout is one step behind.';
     if (s.step === 'purchase'){
-      msg += '\n\nThis is the real purchase, order ' + d1Txn + '. The conversion did NOT fire: the condition needed step="purchase" and GTM saw "payment".';
+      msg += '\n\nThis is the real purchase, order ' + d1Txn + '. The conversion did NOT fire: the condition needed step="purchase" and GTM saw "checkout".';
     }
     if (seen === 'purchase'){
       msg += '\n\nThe conversion fires HERE instead - on "View order details" - because step="purchase" arrived late and is still sitting in the model. It carries order ' + d1Txn + ' with it.';
@@ -966,6 +964,8 @@ function loadDemoPixel(){
   document.getElementById('load_pixel_btn').textContent='Demo pixel loaded';
   logTo('d10log','Pixel library loaded with placeholder ID 123456789.\nOpen the Network tab and filter by facebook.com/tr. A PageView hit has already been sent - and GTM Preview shows nothing, because GTM was never involved.');
 }
+d1Paint();
+
 function d10lead(){
   if(window.fbq){
     fbq('track','Lead');
