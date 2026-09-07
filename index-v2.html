@@ -109,6 +109,9 @@ nav a.active { border-color:var(--blue); }
 .demo { background:#fff; border:1px solid var(--line); border-radius:8px; padding:18px 20px; margin:16px 0; }
 .demo h3 { margin:0 0 3px; font-size:17px; color:var(--blue); }
 .demo .tag { font-size:11px; color:var(--ink); background:var(--lime); border-radius:10px; padding:2px 10px; display:inline-block; margin-bottom:8px; font-weight:bold; text-transform:uppercase; letter-spacing:.5px; }
+.demo .tag.sym { background:var(--ink); color:#fff; text-transform:none; letter-spacing:0; margin-left:4px; }
+.demo p.intent { font-size:13px; color:#222; background:#EEF0FF; border-left:4px solid var(--blue); padding:9px 12px; border-radius:0 8px 8px 0; margin:10px 0; }
+.demo p.intent b { color:var(--blue); }
 .demo p.note { font-size:13px; color:#555; margin:8px 0; }
 button.act { background:var(--blue); color:#fff; border:0; border-radius:8px; padding:9px 14px; margin:4px 6px 4px 0; font-size:13px; cursor:pointer; font-weight:bold; }
 button.act:hover { background:var(--ink); }
@@ -185,7 +188,8 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
     <!-- ---------------- DEMO 1 ---------------- -->
     <div class="demo" id="demo-stale">
       <h3>Demo 1 - The stale value (timing)</h3>
-      <span class="tag">Trigger evaluation</span>
+      <span class="tag">Trigger evaluation</span><span class="tag sym">Fewer conversions than the client's own records</span>
+      <p class="intent"><b>What you were trying to do:</b> count completed purchases and report their revenue to the ad platform.</p>
       <p class="note">Container tag: <code>D1 - Stale value (step=checkout)</code> - Custom Event <code>demo_event</code>, condition <code>DLV step equals checkout</code>.</p>
 
       <div class="modebar">
@@ -216,7 +220,8 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
     <!-- ---------------- DEMO 2 ---------------- -->
     <div class="demo" id="demo-matching">
       <h3>Demo 2 - Exact matching traps</h3>
-      <span class="tag">Trigger evaluation</span>
+      <span class="tag">Trigger evaluation</span><span class="tag sym">The tag does not fire and the setup looks correct</span>
+      <p class="intent"><b>What you were trying to do:</b> fire the conversion only on the real order button, and only for orders above a value threshold.</p>
       <p class="note">Container tags: <code>D2a - Label exact match</code> (<code>label equals Submit Order</code>), <code>D2b - Price greater than 50</code>, <code>D2c - Any demo_event (case control)</code>.</p>
 
       <div class="frag">
@@ -237,7 +242,8 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
     <!-- ---------------- DEMO 3 ---------------- -->
     <div class="demo" id="demo-mailbox">
       <h3>Demo 3 - The disconnected dataLayer</h3>
-      <span class="tag">dataLayer</span>
+      <span class="tag">dataLayer</span><span class="tag sym">Nothing appears in Preview at all</span>
+      <p class="intent"><b>What you were trying to do:</b> nothing yet. You have been told "tracking does not work" and you need to establish whether GTM can hear this site at all before you look at a single tag.</p>
       <p class="note">No website fragment here - this is an instrument check, not a user journey. GTM installs its own push function on the array. If a later script replaces the array, GTM goes deaf, silently.</p>
       <button class="act plain" onclick="d3check()">Check the connection (push.toString)</button>
       <button class="act bad" onclick="window.dataLayer=[]; d3msg('Array replaced. Check the connection again, then try any demo above or below: Preview hears nothing.', true);">Replace the array (break it)</button>
@@ -249,7 +255,8 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
     <!-- ---------------- DEMO 4 ---------------- -->
     <div class="demo" id="demo-forms">
       <h3>Demo 4 - Native form vs JavaScript form</h3>
-      <span class="tag">Listeners</span>
+      <span class="tag">Listeners</span><span class="tag sym">The form works, but nothing is tracked</span>
+      <p class="intent"><b>What you were trying to do:</b> count qualified leads from the callback form.</p>
       <p class="note">Container tag: <code>D4/D5 - Native Form Submit</code> - a Form Submission trigger. The same lead form, built two ways. Both work for the user.</p>
 
       <div class="side">
@@ -278,7 +285,8 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
     <!-- ---------------- DEMO 5 ---------------- -->
     <div class="demo" id="demo-double">
       <h3>Demo 5 - The double-firing form</h3>
-      <span class="tag">User action</span>
+      <span class="tag">User action</span><span class="tag sym">One order, two conversions</span>
+      <p class="intent"><b>What you were trying to do:</b> count each completed order exactly once, with its revenue.</p>
       <p class="note">Container tags: <code>D4/D5 - Native Form Submit</code> and <code>D5 - Server-confirmed order</code> (Custom Event <code>order_confirmed</code>). This checkout simulates a slow server: one click produces two submit events.</p>
 
       <div class="side">
@@ -308,8 +316,10 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
     <!-- ---------------- DEMO 6 ---------------- -->
     <div class="demo" id="demo-ghost">
       <h3>Demo 6 - The foreign auto-tracker</h3>
-      <span class="tag">Listeners</span>
+      <span class="tag">Listeners</span><span class="tag sym">Events nobody set up</span>
+      <p class="intent"><b>What you were trying to do:</b> audit which events already exist on the page, and decide whether the <code>form_submit</code> event you found is safe to build a conversion on.</p>
       <p class="note">Container tag: <code>D6 - Foreign auto-tracker event</code>. A script hardcoded into this page pushes <code>form_submit</code> for every form submission - events nobody configured in GTM. The toggle below is your pause test.</p>
+      <p class="note"><b>The variant that catches people out:</b> the foreign event does not have to come from the site. Another Google tag sitting in the same container can generate <code>form_submit</code> automatically, and a Custom Event trigger built on that generic name will happily fire on it. The fingerprint is <code>eventModel.</code> in the payload - those parameters mean a Google tag wrote the event, not the site. Before building on any common event name, check whether something else on the page already produces it.</p>
 
       <label class="toggle"><input type="checkbox" checked onchange="AUTO_TRACKER_ON=this.checked; d6msg(this.checked)"> site auto-tracker enabled</label>
 
@@ -328,7 +338,8 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
     <!-- ---------------- DEMO 7 ---------------- -->
     <div class="demo" id="demo-iframe">
       <h3>Demo 7 - The embedded (iframe) payment widget</h3>
-      <span class="tag">Environments</span>
+      <span class="tag">Environments</span><span class="tag sym">Everything works except inside the widget</span>
+      <p class="intent"><b>What you were trying to do:</b> track completed payments made inside the embedded widget.</p>
       <p class="note">Container tag: <code>D7 - Iframe bridge payment</code> (Custom Event <code>payment_complete</code>). The widget below is a separate document supplied by a third party. The parent URL never changes and parent GTM cannot see inside.</p>
 
       <div class="frag wide">
@@ -355,7 +366,8 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
     <!-- ---------------- DEMO 8 ---------------- -->
     <div class="demo" id="demo-spa">
       <h3>Demo 8 - The single-page application</h3>
-      <span class="tag">Environments</span>
+      <span class="tag">Environments</span><span class="tag sym">Conversions arrive with the wrong price</span>
+      <p class="intent"><b>What you were trying to do:</b> track product views with the correct product and price, to feed a remarketing audience.</p>
       <p class="note">Container tags: <code>D8 - History Change (SPA views)</code> and <code>D8 - view_item (watch the value)</code>. Views change without page loads: no new Container Loaded, DOM Ready or Window Loaded. The dataLayer is never cleared, and GTM merges every push into one running picture.</p>
 
       <div class="frag wide">
@@ -391,7 +403,8 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
     <!-- ---------------- DEMO 9 ---------------- -->
     <div class="demo" id="demo-thankyou">
       <h3>Demo 9 - The reloadable conversion</h3>
-      <span class="tag">User action</span>
+      <span class="tag">User action</span><span class="tag sym">Conversions keep appearing without purchases</span>
+      <p class="intent"><b>What you were trying to do:</b> count purchases, using the thank-you page because it is the only signal you were given.</p>
       <p class="note">Container tag: <code>D9 - URL-based conversion (reloadable)</code> - Page View with <code>Page URL contains thank_you</code>. A conversion built on reaching a URL counts arrivals at a page, not purchases.</p>
 
       <div class="side">
@@ -416,7 +429,8 @@ iframe { width:100%; height:150px; border:1px solid var(--line); border-radius:8
     <!-- ---------------- DEMO 10 ---------------- -->
     <div class="demo" id="demo-signals">
       <h3>Demo 10 - Network signal generator</h3>
-      <span class="tag">Network hits</span>
+      <span class="tag">Network hits</span><span class="tag sym">Preview looks clean, the platform disagrees</span>
+      <p class="intent"><b>What you were trying to do:</b> verify what the platform is actually receiving, before you report back that tracking is fine.</p>
       <p class="note">No website fragment and no container involvement - this demo exists to show what GTM Preview cannot see. A dataLayer push is not traffic: a hit only exists when a tag sends one.</p>
       <button class="act" id="load_pixel_btn" onclick="loadDemoPixel()">Load demo pixel (placeholder ID)</button>
       <button class="act good" onclick="d10lead()">Send a Lead event</button>
