@@ -267,7 +267,6 @@ details.answer .expect { margin:0 13px 13px; }
             <label>Email<input type="email" placeholder="name@company.com"></label>
             <input type="submit" value="Request callback" class="act" style="margin-top:10px">
           </form>
-          <div class="ok-msg" id="native_success">Thanks, we will call you back.</div>
         </div>
 
         <div class="frag">
@@ -300,7 +299,8 @@ details.answer .expect { margin:0 13px 13px; }
       2. Failing that, a distinct element or identifier for the success state. This is often the easier sell - it is a front-end change rather than a tracking change, and it costs a developer about two minutes.<br>
       3. Last resort: Element Visibility plus a condition on the message text. Log it as interim - it breaks on a copy change, a translation, or an A/B test, and nobody will tell you when that happens.<br>
       Never a click trigger on the button, unless the client has explicitly accepted counting attempts rather than successes.<br><br>
-      <b>One exception worth checking.</b> If the site gives its error state a different class or identifier, you are back in case B - target the success element specifically and you are done. Always look before escalating.<br><br>
+      <b>Note the colour is not a selector.</b> The error state here is red and the success state is green, but both are the same element with the same ID and the same class - the colour is applied inline. Looking different on screen is not the same as being targetable. Judge by the markup, not by the design.<br><br>
+      <b>One exception worth checking.</b> Plenty of real sites do give their error state its own class, and if this one did you would be back in case B - target the success element specifically and you are done. Always look at the markup before escalating.<br><br>
       <b>The four-step check that gets you to a verdict, no code required:</b><br>
       1. Inspect the button. Is it <code>type="submit"</code> or <code>type="button"</code>, and is there a <code>&lt;form&gt;</code> above it?<br>
       2. Submit with Preview open. Did a Form Submit event appear?<br>
@@ -847,7 +847,6 @@ function d3show(id){
   setTimeout(function(){ el.classList.add('show'); }, 300);
 }
 function d3native(){
-  d3show('native_success');
   logTo('d3log','Form A submitted.');
   return false;
 }
@@ -860,6 +859,10 @@ function d3shared(){
   var ok = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
   var box = document.getElementById('shared_message');
   box.textContent = ok ? 'Thanks, we will call you back.' : 'Please enter a valid email address.';
+  /* Colour is set inline, so the element keeps the same id and the same class in both
+     states. A selector cannot tell success from failure - which is the whole point. */
+  box.style.background = ok ? 'var(--lime)' : 'var(--red)';
+  box.style.color      = ok ? 'var(--ink)'  : '#fff';
   d3show('shared_message');
   logTo('d3log','Form C submitted.');
 }
