@@ -271,19 +271,19 @@ details.answer .expect { margin:0 13px 13px; }
 
         <div class="frag">
           <div class="frag-h">Form B</div>
-          <form id="js_form" class="fields" onsubmit="return false;">
+          <div id="js_form" class="fields">
             <label>Email<input type="email" placeholder="name@company.com"></label>
             <button type="button" class="act" style="margin-top:10px" onclick="d3js()">Request callback</button>
-          </form>
+          </div>
           <div class="ok-msg" id="js_success">Thanks, we will call you back.</div>
         </div>
 
         <div class="frag">
           <div class="frag-h">Form C</div>
-          <form id="shared_form" class="fields" onsubmit="return false;">
+          <div id="shared_form" class="fields">
             <label>Email<input type="email" id="shared_email" placeholder="name@company.com"></label>
             <button type="button" class="act" style="margin-top:10px" onclick="d3shared()">Request callback</button>
-          </form>
+          </div>
           <div class="ok-msg" id="shared_message"></div>
         </div>
       </div>
@@ -292,8 +292,8 @@ details.answer .expect { margin:0 13px 13px; }
       <details class="answer"><summary>Show the explanation</summary>
       <div class="expect">Three forms, identical to the user, three different verdicts.<br><br>
       <b>Form A.</b> A real form submission, so the browser fires its own submit event and GTM's Form Submission trigger hears it. Verdict: container-only fix, no developer needed.<br><br>
-      <b>Form B.</b> The button is <code>type="button"</code> - JavaScript takes the click and sends the data itself, so no submit event ever happens and the Form Submission trigger has nothing to hear. But the success message that appears is unique to success and has its own identifier. Verdict: still a container-only fix, using <b>Element Visibility</b> with <b>Observe DOM changes</b> enabled, because the message does not exist when the page loads.<br><br>
-      <b>Form C.</b> Same as B, except success and validation errors are written into the <i>same</i> message box - only the wording differs. Submit it with an invalid email and watch Element Visibility fire anyway. Verdict: <b>not reliably trackable from the container</b>, because you would be counting failed submissions as leads.<br><br>
+      <b>Form B.</b> There is no <code>&lt;form&gt;</code> element at all - just inputs and a <code>type="button"</code> button in a container. JavaScript takes the click and sends the data itself, so no submit event can exist and the Form Submission trigger has nothing to hear. <code>Form ID</code> and <code>Form Classes</code> will also be empty, which is a second confirmation. But the success message that appears is unique to success and has its own identifier. Verdict: still a container-only fix, using <b>Element Visibility</b> with <b>Observe DOM changes</b> enabled, because the message does not exist when the page loads.<br><br>
+      <b>Form C.</b> Same markup as B, except success and validation errors are written into the <i>same</i> message box - only the wording differs. Submit it with an invalid email and watch Element Visibility fire anyway. Verdict: <b>not reliably trackable from the container</b>, because you would be counting failed submissions as leads.<br><br>
       <b>What to ask for on a Form C, in order:</b><br>
       1. A dataLayer event pushed on success only. Best, and unambiguous.<br>
       2. Failing that, a distinct element or identifier for the success state. This is often the easier sell - it is a front-end change rather than a tracking change, and it costs a developer about two minutes.<br>
@@ -301,8 +301,9 @@ details.answer .expect { margin:0 13px 13px; }
       Never a click trigger on the button, unless the client has explicitly accepted counting attempts rather than successes.<br><br>
       <b>Note the colour is not a selector.</b> The error state here is red and the success state is green, but both are the same element with the same ID and the same class - the colour is applied inline. Looking different on screen is not the same as being targetable. Judge by the markup, not by the design.<br><br>
       <b>One exception worth checking.</b> Plenty of real sites do give their error state its own class, and if this one did you would be back in case B - target the success element specifically and you are done. Always look at the markup before escalating.<br><br>
+      <b>One trap to know about on real sites.</b> If a <code>&lt;form&gt;</code> does exist and it contains a single field, pressing <b>Enter</b> in that field submits it - the browser calls this implicit submission, and it produces a real submit event even when the visible button is <code>type="button"</code>. The result is a form that is tracked when people press Enter and untracked when they click. Nobody ever notices, and the numbers are quietly wrong. Always test both ways.<br><br>
       <b>The four-step check that gets you to a verdict, no code required:</b><br>
-      1. Inspect the button. Is it <code>type="submit"</code> or <code>type="button"</code>, and is there a <code>&lt;form&gt;</code> above it?<br>
+      1. Inspect the button. Is it <code>type="submit"</code> or <code>type="button"</code>, and is there a <code>&lt;form&gt;</code> element above it at all?<br>
       2. Submit with Preview open. Did a Form Submit event appear?<br>
       3. Submit with the Network tab open. Did anything leave, and what did the server answer? That is evidence for the ticket - you cannot trigger on it.<br>
       4. Look at what changed on the page. Is it unique to success, or does the same element show errors too?</div></details>
