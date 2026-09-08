@@ -255,43 +255,57 @@ details.answer .expect { margin:0 13px 13px; }
 
     <!-- ---------------- DEMO 3 ---------------- -->
     <div class="demo" id="demo-forms">
-      <h3>Demo 3 - Three forms, three different triggers</h3>
+      <h3>Demo 3 - Three forms, three verdicts</h3>
       <span class="tag">Listeners</span><span class="tag sym">The form works, but no lead is recorded</span>
       <p class="intent"><b>What you were trying to do:</b> count qualified leads from the callback form.</p>
-      <p class="watch"><b>What to watch:</b> Submit all three forms. After each one, look at Preview’s left rail, and look at what the form left behind on the page.</p>
+      <p class="watch"><b>What to watch:</b> Submit all three. For each one, decide which of three verdicts it lands on - trackable with a Form Submission trigger, trackable some other way, or not trackable from the container at all. Submit form C twice: once with a valid email, once with an invalid one.</p>
 
       <div class="side">
         <div class="frag">
-          <div class="frag-h">Form A - classic</div>
+          <div class="frag-h">Form A</div>
           <form id="native_form" class="fields" action="#" onsubmit="return d3native();">
             <label>Email<input type="email" placeholder="name@company.com"></label>
             <input type="submit" value="Request callback" class="act" style="margin-top:10px">
           </form>
-          <p class="note">Reloads the page on a real site. Form Submission trigger sees it.</p>
+          <div class="ok-msg" id="native_success">Thanks, we will call you back.</div>
         </div>
+
         <div class="frag">
-          <div class="frag-h">Form B - JavaScript</div>
+          <div class="frag-h">Form B</div>
           <form id="js_form" class="fields" onsubmit="return false;">
             <label>Email<input type="email" placeholder="name@company.com"></label>
             <button type="button" class="act" style="margin-top:10px" onclick="d3js()">Request callback</button>
           </form>
-          <p class="note">Intercepts the click and sends the data itself. No native submit event exists.</p>
+          <div class="ok-msg" id="js_success">Thanks, we will call you back.</div>
         </div>
+
         <div class="frag">
-          <div class="frag-h">Form C - AJAX</div>
-          <form id="ajax_form" class="fields" onsubmit="return d3ajax();">
-            <label>Email<input type="email" placeholder="name@company.com"></label>
-            <input type="submit" value="Request callback" class="act" style="margin-top:10px">
+          <div class="frag-h">Form C</div>
+          <form id="shared_form" class="fields" onsubmit="return false;">
+            <label>Email<input type="email" id="shared_email" placeholder="name@company.com"></label>
+            <button type="button" class="act" style="margin-top:10px" onclick="d3shared()">Request callback</button>
           </form>
-          <div class="ok-msg" id="ajax_success">Thanks, we will call you back.</div>
-          <p class="note">Confirms in place, no reload. The success message is your signal.</p>
+          <div class="ok-msg" id="shared_message"></div>
         </div>
       </div>
 
       <div class="log" id="d3log">Nothing submitted yet.</div>
       <details class="answer"><summary>Show the explanation</summary>
-      <div class="expect">Form A fires GTM's Form Submission trigger. Form B fires nothing at all - the user gets a confirmation, GTM sees silence, and this is the most common reason a lead form "is not tracking". Form C also fires nothing on submit, but it reveals a success message, so Element Visibility on that message with <b>Observe DOM changes</b> enabled is your trigger.<br><br>
-      For B and C the better fix is still to ask for a dataLayer event on confirmed submission. Element Visibility is what you use while you wait, or when nobody will build it.</div></details>
+      <div class="expect">Three forms, identical to the user, three different verdicts.<br><br>
+      <b>Form A.</b> A real form submission, so the browser fires its own submit event and GTM's Form Submission trigger hears it. Verdict: container-only fix, no developer needed.<br><br>
+      <b>Form B.</b> The button is <code>type="button"</code> - JavaScript takes the click and sends the data itself, so no submit event ever happens and the Form Submission trigger has nothing to hear. But the success message that appears is unique to success and has its own identifier. Verdict: still a container-only fix, using <b>Element Visibility</b> with <b>Observe DOM changes</b> enabled, because the message does not exist when the page loads.<br><br>
+      <b>Form C.</b> Same as B, except success and validation errors are written into the <i>same</i> message box - only the wording differs. Submit it with an invalid email and watch Element Visibility fire anyway. Verdict: <b>not reliably trackable from the container</b>, because you would be counting failed submissions as leads.<br><br>
+      <b>What to ask for on a Form C, in order:</b><br>
+      1. A dataLayer event pushed on success only. Best, and unambiguous.<br>
+      2. Failing that, a distinct element or identifier for the success state. This is often the easier sell - it is a front-end change rather than a tracking change, and it costs a developer about two minutes.<br>
+      3. Last resort: Element Visibility plus a condition on the message text. Log it as interim - it breaks on a copy change, a translation, or an A/B test, and nobody will tell you when that happens.<br>
+      Never a click trigger on the button, unless the client has explicitly accepted counting attempts rather than successes.<br><br>
+      <b>One exception worth checking.</b> If the site gives its error state a different class or identifier, you are back in case B - target the success element specifically and you are done. Always look before escalating.<br><br>
+      <b>The four-step check that gets you to a verdict, no code required:</b><br>
+      1. Inspect the button. Is it <code>type="submit"</code> or <code>type="button"</code>, and is there a <code>&lt;form&gt;</code> above it?<br>
+      2. Submit with Preview open. Did a Form Submit event appear?<br>
+      3. Submit with the Network tab open. Did anything leave, and what did the server answer? That is evidence for the ticket - you cannot trigger on it.<br>
+      4. Look at what changed on the page. Is it unique to success, or does the same element show errors too?</div></details>
     </div>
 
     <!-- ---------------- DEMO 4 ---------------- -->
@@ -826,20 +840,28 @@ function d1(build){
   });
 })();
 
-/* ---- Demo 3: forms ---- */
+/* ---- Demo 3: three forms, three verdicts ---- */
+function d3show(id){
+  var el = document.getElementById(id);
+  el.classList.remove('show');
+  setTimeout(function(){ el.classList.add('show'); }, 300);
+}
 function d3native(){
+  d3show('native_success');
   logTo('d3log','Form A submitted.');
   return false;
 }
 function d3js(){
+  d3show('js_success');
   logTo('d3log','Form B submitted.');
 }
-function d3ajax(){
-  var el = document.getElementById('ajax_success');
-  el.classList.remove('show');
-  setTimeout(function(){ el.classList.add('show'); }, 400);
+function d3shared(){
+  var v = (document.getElementById('shared_email').value || '').trim();
+  var ok = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
+  var box = document.getElementById('shared_message');
+  box.textContent = ok ? 'Thanks, we will call you back.' : 'Please enter a valid email address.';
+  d3show('shared_message');
   logTo('d3log','Form C submitted.');
-  return false;
 }
 
 /* ---- Demo 4: the tag that loses the race ---- */
