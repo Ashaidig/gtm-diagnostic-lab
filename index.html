@@ -394,20 +394,22 @@ details.answer .expect { margin:0 13px 13px; }
       <h3>Demo 8 - Getting an order ID when nobody will give you one</h3>
       <span class="tag">User action</span><span class="tag sym">The same purchase is counted more than once</span>
       <p class="intent"><b>What you were trying to do:</b> count each purchase once, which means every conversion needs a unique order ID.</p>
-      <p class="watch"><b>What to watch:</b> Push the purchase without an ID and look at what the platform would receive. Then find the order number on the page and work out how you would get it into the tag.</p>
+      <p class="watch"><b>What to watch:</b> Complete the order and read the API Call - note the event name the site chose, and note what is missing from it. Then find the order number on the page and work out how you would get it into the tag without touching the site.</p>
 
       <div class="frag">
         <div class="frag-h">Thank you for your order</div>
         <div class="frow"><span>Order number</span><span id="order_number">ORD-482913</span></div>
         <div class="frow"><span>Item B <span class="sku">SKU-1002</span></span><span>90.00</span></div>
         <div class="frow total"><span>Charged</span><span class="amt">90.00 USD</span></div>
-        <button class="act bad" onclick="d8push(false)">Purchase event - no order ID (what the site sends)</button>
-        <button class="act good" onclick="d8push(true)">Read the order ID off the page</button>
+        <button class="act bad" onclick="d8push(false)">Complete the order (what the site sends)</button>
+        <button class="act good" onclick="d8push(true)">Show the order number on this page</button>
       </div>
 
       <div class="log" id="d8log">Nothing pushed yet.</div>
       <details class="answer"><summary>Show the explanation</summary>
-      <div class="expect">Without an ID the platform cannot tell a reload, a bookmark or a shared link from a new sale, so the count drifts upward and nobody can explain it. The number is printed on the page in front of you - which means you can read it without anyone's help.<br><br>
+      <div class="expect">Two things to notice about the event itself. The site calls it <code>orderComplete</code>, not <code>purchase</code> - event names are not standardised, so never assume one, and never retype one from memory. And it carries no order ID at all.<br><br>
+      Without an ID the platform cannot tell a reload, a bookmark or a shared link from a new sale, so the count drifts upward and nobody can explain it. The number is printed on the page in front of you - which means you can read it without anyone's help.<br><br>
+      The tag then fires on <code>orderComplete</code> and picks the ID up from the page rather than from the push. Check the outgoing request: it carries an order ID the event never contained.<br><br>
       Build a <b>DOM Element</b> variable with selection method <b>ID</b> and element ID <code>order_number</code>, then map it into the tag's transaction ID field. The <a href="https://chromewebstore.google.com/detail/gtm-variable-builder/feeboihdgpananoagfmbohoogoncndba" target="_blank">GTM Variable Builder</a> extension will generate the selector for you if the element has no ID.<br><br>
       <b>Its limits, which you must say out loud to the client.</b> Scraping breaks the day the site changes, so it is an interim fix with an expiry date, not a solution. And it only works where you can put a container: if the purchase completes on a payment provider's own domain, or there is no confirmation page at all, there is nothing to scrape. In those two cases your options are a return URL carrying the order parameters, the payment provider's own tracking, or a server-side integration - and none of them are container work.</div></details>
     </div>
@@ -905,8 +907,8 @@ function spaGo(name){
 function d8push(scrape){
   if (!scrape){
     dataLayer.push({ ecommerce:null });
-    dataLayer.push({ event:'purchase', ecommerce:{ value:90, currency:'USD' } });
-    logTo('d8log','Purchase event sent.');
+    dataLayer.push({ event:'orderComplete', value:90, currency:'USD' });
+    logTo('d8log','Order completed.');
   } else {
     var id = (document.getElementById('order_number')||{}).textContent || '';
     logTo('d8log','Order number found on the page: ' + id);
