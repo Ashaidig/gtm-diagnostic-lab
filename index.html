@@ -232,13 +232,12 @@ details.answer .expect { margin:0 13px 13px; }
       <h3>Demo 2 - Which trigger type, and why</h3>
       <span class="tag">Listeners</span><span class="tag sym">The click trigger fires sometimes, or not at all</span>
       <p class="intent"><b>What you were trying to do:</b> track clicks on a call-to-action, a phone number and an email address.</p>
-      <p class="watch"><b>What to watch:</b> Click the coloured circle inside the first button, then click its text. Compare every row of the table. Then click the text inside <b>Book a demo</b>, and the phone and email links.</p>
+      <p class="watch"><b>What to watch:</b> Click the coloured circle inside the button, then click its text. Compare every row of the table. Then click the phone and email links and compare the two Click URL rows.</p>
 
       <div class="frag wide">
         <div class="frag-h">Contact bar</div>
         <div class="clickzone" id="clickzone">
           <button class="btnico" id="cta_quote"><span class="ico"></span><span class="lbl">Get a quote</span></button>
-          <a id="cta_book" href="/book"><span>Book a demo</span></a>
           <a href="tel:+15550001234">Call us</a>
           <a href="mailto:hello@example.com">Email us</a>
           <a href="https://example.com" target="_blank">External link</a>
@@ -249,7 +248,8 @@ details.answer .expect { margin:0 13px 13px; }
 
       <details class="answer"><summary>Show the explanation</summary>
       <div class="expect">Clicking the coloured circle inside the button means the clicked element is the <code>&lt;span&gt;</code>, not the button - so <code>Click ID</code> comes back empty and <code>D2a</code> does not fire, while <code>D2b</code> does, because the CSS selector <code>#cta_quote, #cta_quote *</code> matches the button and everything inside it. That is the single most common reason a click trigger "works sometimes".<br><br>
-      On the links: with <b>All Elements</b>, clicking the text inside <code>Book a demo</code> gives an empty <code>Click URL</code>, because the <code>&lt;span&gt;</code> has no <code>href</code>. <b>Just Links</b> resolves to the anchor and gives you the URL every time - which is why phone and email tracking should always use Just Links with <code>Click URL contains tel:</code> or <code>mailto:</code>, never All Elements plus Click Text.<br><br>
+      On the links: <b>Just Links</b> resolves up to the anchor whatever you clicked inside it, so <code>Click URL</code> is always populated. That is why phone and email tracking uses Just Links with <code>Click URL contains tel:</code> or <code>mailto:</code> - never All Elements with Click Text, which breaks on translation, a copy change or an A/B test.<br><br>
+      Note the button has no <code>Click URL</code> at all under either method: <code>href</code> exists only on <code>&lt;a&gt;</code>, and a <code>&lt;button&gt;</code> does not have one. Just Links can never fire on it either.<br><br>
       Navigation is prevented here so the page stays put; on a real site, see Demo 4.</div></details>
     </div>
 
