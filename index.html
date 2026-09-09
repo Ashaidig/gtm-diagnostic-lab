@@ -386,10 +386,9 @@ details.answer .expect { margin:0 13px 13px; }
       </div>
 
       <div class="frag wide" style="margin-top:14px">
-        <div class="frag-h">The same page, second widget - a genuine third party</div>
-        <p class="note" style="margin:0 0 8px">Right-click each of the two widgets, Inspect, and compare the <code>&lt;iframe&gt;</code> tag itself.</p>
-        <iframe id="third_party_frame" style="height:200px" loading="lazy"
-                src="https://www.openstreetmap.org/export/embed.html?bbox=-0.13%2C51.50%2C-0.11%2C51.52&layer=mapnik"></iframe>
+        <div class="frag-h">Second widget on the same page - a genuine third party</div>
+        <p class="note" style="margin:0 0 8px">Right-click each widget, Inspect, and compare the <code>&lt;iframe&gt;</code> tag itself.</p>
+        <iframe id="third_party_frame" style="height:130px" loading="lazy" src="https://example.com"></iframe>
       </div>
 
       <label class="toggle"><input type="checkbox" id="bridge_toggle" checked> the widget sends its result out to the page around it</label>
@@ -397,7 +396,7 @@ details.answer .expect { margin:0 13px 13px; }
       <details class="answer"><summary>Show the explanation</summary>
       <div class="expect">An iframe is a separate document. Your container lives on the page around it and cannot see in: no clicks, no form submits, no URL change, nothing.<br><br>
       There are only three ways this is ever solved. <b>One:</b> the widget sends its result out to the parent page and the page pushes it to the dataLayer - the tick box above. <b>Two:</b> you own the content of the iframe and can put a push inside it, which is true for your own subdomains and almost never true for a third-party widget. <b>Three:</b> neither, in which case there is no container-side fix and the answer to the client is that the vendor has to provide it.<br><br>
-      Untick the box and pay again: the payment succeeds in front of you and the page around it learns nothing.<br><br>      <b>Telling the two widgets apart in Elements.</b> Right-click each one and look at the <code>&lt;iframe&gt;</code> tag itself. The payment widget has no <code>src</code> pointing anywhere - its content is written inline by this page, so that document is ours and we could push events from inside it. The map has <code>src="https://www.openstreetmap.org/..."</code>, a different domain entirely. That one attribute is the whole diagnosis.<br><br>      <b>What the src tells you.</b> A domain you do not control means the document belongs to someone else: your container cannot reach into it, the client's developers cannot add a push inside it either, and your only options are whatever events that vendor chooses to publish. The client's own domain or subdomain means the opposite - a container can go inside, or their developer can send the event out.<br><br>      So before promising anything on an embedded flow: read the <code>src</code>, then go and read that vendor's documentation.</div></details>
+      Untick the box and pay again: the payment succeeds in front of you and the page around it learns nothing.<br><br>      <b>Telling the two widgets apart in Elements.</b> Right-click each one and look at the <code>&lt;iframe&gt;</code> tag itself. The payment widget has no <code>src</code> pointing anywhere - its content is written inline by this page, so that document is ours and we could push events from inside it. The second one has <code>src="https://example.com"</code>, a different domain entirely. That one attribute is the whole diagnosis.<br><br>      <b>What the src tells you.</b> A domain you do not control means the document belongs to someone else: your container cannot reach into it, the client's developers cannot add a push inside it either, and your only options are whatever events that vendor chooses to publish. The client's own domain or subdomain means the opposite - a container can go inside, or their developer can send the event out.<br><br>      So before promising anything on an embedded flow: read the <code>src</code>, then go and read that vendor's documentation.</div></details>
     </div>
 
     <!-- ---------------- DEMO 7 ---------------- -->
