@@ -25,7 +25,7 @@ var GTM_ID = (function(){
 })();
 
 /* Main SOP link - shown in the header. Replace '#' once published on Slite. */
-var SOP_MAIN = '#';
+var SOP_MAIN = 'https://aidigital.slite.com/app/docs/t6hk4FMUTUlzod';
 
 /* Answer-key container export. Put the .json in this repo and set the filename
    here, e.g. 'gtm-diagnostic-lab.json'. Leave empty to hide the download. */
@@ -33,15 +33,17 @@ var CONTAINER_JSON = 'gtm-diagnostic-lab.json';
 
 /* Per-verdict SOP sections. Replace '#' with the Slite section URLs. */
 var SOP = {
-  autopsy:     '#',   // Run the 60-second trigger autopsy
-  duplicates:  '#',   // Diagnose duplicate firing
-  revenue:     '#',   // Fix the revenue chain
-  stale:       '#',   // Fix a stale-value push
-  isolate:     '#',   // Isolate a suspect (pause / block)
-  environment: '#',   // Environment checks (iframe / SPA)
-  testenv:     '#',   // Verify your test environment
-  platforms:   '#',   // Platform comparison and debug surfaces
-  mailbox:     '#'    // The disconnected dataLayer
+  /* All point at the guide for now. Replace individually with Slite section
+     anchors once the headings are in place. */
+  autopsy:     'https://aidigital.slite.com/app/docs/t6hk4FMUTUlzod',
+  duplicates:  'https://aidigital.slite.com/app/docs/t6hk4FMUTUlzod',
+  revenue:     'https://aidigital.slite.com/app/docs/t6hk4FMUTUlzod',
+  stale:       'https://aidigital.slite.com/app/docs/t6hk4FMUTUlzod',
+  isolate:     'https://aidigital.slite.com/app/docs/t6hk4FMUTUlzod',
+  environment: 'https://aidigital.slite.com/app/docs/t6hk4FMUTUlzod',
+  testenv:     'https://aidigital.slite.com/app/docs/t6hk4FMUTUlzod',
+  platforms:   'https://aidigital.slite.com/app/docs/t6hk4FMUTUlzod',
+  mailbox:     'https://aidigital.slite.com/app/docs/t6hk4FMUTUlzod'
 };
 </script>
 
@@ -172,7 +174,7 @@ details.answer .expect { margin:0 13px 13px; }
 <header>
   <h1>GTM Diagnostic Lab</h1>
   <p>Pick the symptom you are experiencing. Each question is a real diagnostic step: answering it on your own case teaches the method. Every path ends with a cause, a live demo, and the fix.</p>
-  <p class="sopline">Written procedures and full theory: <a href="#" id="sop-main-link" target="_blank">GTM Diagnostic SOP</a> <span style="color:#888">(link to be added once published on Slite)</span></p>
+  <p class="sopline">Written procedures and full theory: <a href="#" id="sop-main-link" target="_blank">GTM Diagnostic SOP</a></p>
 </header>
 <div id="idbar"></div>
 <nav>
