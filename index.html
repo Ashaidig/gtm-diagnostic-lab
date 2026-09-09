@@ -346,7 +346,7 @@ details.answer .expect { margin:0 13px 13px; }
       <h3>Demo 5 - The popup nobody can see</h3>
       <span class="tag">Environments</span><span class="tag sym">It works on the page but not in the popup</span>
       <p class="intent"><b>What you were trying to do:</b> count enquiries submitted through the modal that opens on the page.</p>
-      <p class="watch"><b>What to watch:</b> Submit the enquiry, then close the popup and submit a second one. The only evidence a conversion happened is something appearing on screen - work out which trigger reads that, and which of its settings decide whether it fires at all, and whether it fires twice.</p>
+      <p class="watch"><b>What to watch:</b> Open the popup, submit an enquiry, and close it. Now open it again and submit a second one. The first is counted. The second is not. The only evidence a conversion happened is a message appearing on screen - work out which trigger reads that, and which two of its settings decide whether it fires at all, and whether it ever fires again.</p>
 
       <div class="frag">
         <div class="frag-h">Landing page</div>
@@ -358,7 +358,7 @@ details.answer .expect { margin:0 13px 13px; }
       <div class="expect">A click trigger on the button counts people who opened the popup, not people who completed anything. The success message is the only honest signal available without a developer, and <b>Element Visibility</b> is the trigger built for reading it.<br><br>
       Two of its settings decide whether it works at all, and both are left wrong constantly.<br><br>
       <b>Observe DOM changes.</b> Off by default. Without it GTM checks for the element once, at page load - and at page load the success message does not exist yet, so the trigger never fires and the tag looks broken for no visible reason. This is the single most common cause of "my Element Visibility trigger does nothing".<br><br>
-      <b>Firing frequency.</b> Left on "once per page", the second enquiry in the same session is silently not counted. On a page whose whole purpose is a repeatable popup, that is a permanent undercount nobody notices. Set it to fire every time the element appears.<br><br>
+      <b>Firing frequency.</b> This trigger ships set to <b>once per page</b>, which is the common mistake and the reason your second enquiry vanished. The first submission is counted; everything after it is silently dropped for the rest of that page. Change it to <b>every time an element appears</b> and the second one is counted.<br><br>      And "once per page" means once per page <i>load</i>, which is the part that really hurts. On a normal site the counter resets when the user reloads. On a site that never reloads - Demo 7 - there is no reload, so once per page becomes <b>once per visit</b>: a visitor who enquires three times is counted once. Popups and client-side routing together are one of the quietest undercounts there is.<br><br>
       Third-party popup tools often render their form inside an iframe instead. If the success message is not in your page's DOM, this trigger cannot see it either - that is Demo 6.</div></details>
     </div>
 
@@ -445,11 +445,11 @@ details.answer .expect { margin:0 13px 13px; }
   <div class="overlay" id="modal_overlay">
     <div class="modal">
       <h4>Enquire now</h4>
-      <form id="modal_form" class="fields" onsubmit="return d5submit();">
+      <div id="modal_form" class="fields">
         <label>Email<input type="email" placeholder="name@company.com"></label>
-        <input type="submit" value="Send enquiry" class="act" style="margin-top:10px">
+        <button type="button" value="Send enquiry" class="act" style="margin-top:10px" onclick="d5submit()">Send enquiry</button>
         <button type="button" class="act plain" style="margin-top:10px" onclick="d5close()">Close</button>
-      </form>
+      </div>
       <div class="ok-msg" id="modal_success">Thanks, we will be in touch.</div>
     </div>
   </div>
@@ -900,7 +900,6 @@ function d5close(){
 function d5submit(){
   document.getElementById('modal_success').classList.add('show');
   logTo('d5log','Enquiry submitted. The success message is now on the page.');
-  return false;
 }
 
 /* ---- Demo 6: embedded widget ---- */
