@@ -314,23 +314,31 @@ details.answer .expect { margin:0 13px 13px; }
       <h3>Demo 4 - The tag that loses the race</h3>
       <span class="tag">Tag execution</span><span class="tag sym">Preview says the tag fired, but nothing was sent</span>
       <p class="intent"><b>What you were trying to do:</b> count clicks on an outbound link that immediately leaves the page.</p>
-      <p class="watch"><b>What to watch:</b> Open the <b>Network</b> tab and tick <b>Preserve log</b>. Click once with the box unticked, come back, then click again with it ticked. Compare the status of the outgoing request each time.</p>
+      <p class="watch"><b>What to watch:</b> Network tab, <b>Preserve log</b> on, throttling set to <b>Slow 4G</b>. Click the link and come back. Then read three places about the same tag: the header in Preview, the Firing Status in the tag's details, and the Status column in the Network tab. They will not agree. Work out which one you would put in a ticket.</p>
 
       <div class="frag">
         <div class="frag-h">Resources</div>
-        <p class="note" style="margin:0 0 8px">Open the Network tab and tick <b>Preserve log</b> before clicking, or you will lose the evidence in the reload.</p>
-        <label class="toggle"><input type="checkbox" id="wait_toggle"> hold the navigation for 2 seconds (what <b>Wait for Tags</b> does)</label><br>
-        <a class="act" id="d4link" style="margin-top:10px" href="?left=1#lab">Download the brochure</a>
+        <p class="note" style="margin:0 0 8px">Tick <b>Preserve log</b> and set throttling to <b>Slow 4G</b> before clicking, or you will see nothing at all.</p>
+        <a class="act" id="d4link" style="margin-top:10px" href="index.html?left=1#lab">Download the brochure</a>
       </div>
 
       <div class="log" id="d4log">Nothing clicked yet.</div>
       <details class="answer"><summary>Show the explanation</summary>
-      <div class="expect">The request the tag sends is still in flight when the browser unloads the page, so it never completes and nothing reaches the platform - while GTM Preview happily records the tag as fired.<br><br>
-      <b>What you are looking for in the Network tab:</b> the row shows <b>no status code</b> and <b>0.0 kB</b>. Chrome labels it <code>(canceled)</code> or <code>(unknown)</code> depending on how the navigation happened - either way, the absence of a status and a size is the evidence. A successful hit shows 200 and a size.<br><br>
-      <b>Worth knowing:</b> a killed request does not survive a HAR export. HAR entries require a response, and this one never got one, so exporting the log silently drops exactly the thing you are trying to prove. Screenshot it instead.<br><br>
-      <b>The fix, and the exercise.</b> Build one tag on a Just Links trigger with <b>Wait for Tags</b> off. Click, and watch it die. Then tick Wait for Tags on the trigger, set the timeout to two seconds, and click again - the navigation is held back, the request completes, and the same click is counted. On forms, pair it with <b>Check Validation</b> so you do not count submissions the form itself rejects.<br><br>
-      One thing to get right: the wait timeout must comfortably exceed how long the request takes. Set them equal and the tag loses the race anyway, which looks exactly like the setting not working.<br><br>
-      This is one of the few tracking problems you can fix entirely on your own, in about a minute.</div></details>
+      <div class="expect"><b>What happened.</b> The request was still in flight when the browser unloaded the page, so it never completed. Preview records the tag as fired regardless.<br><br>
+      <b>Why throttling.</b> On a fast desktop connection the request usually finishes before unload and the bug is invisible - which is exactly why it reaches production. Slow 4G reproduces the connection a real mobile user has. That is the population quietly losing conversions.<br><br>
+      <b>The fix.</b> <b>Wait for Tags</b> on the trigger, with a timeout of about two seconds. GTM intercepts the click, holds the navigation until the tags finish, then follows the link. On forms, pair it with <b>Check Validation</b> so you do not count submissions the form itself rejected.<br><br>
+      <b>Two gotchas that will cost you time.</b> Wait for Tags cannot be saved unless you also fill in <b>Enable this trigger when all of these conditions are true</b>. It appears only after you tick the box, it is mandatory, and GTM greys out Save without explaining why. Use something like <code>Page URL contains</code> your site. Second: the timeout must comfortably exceed how long the request takes. Set them equal and the tag loses anyway, which looks identical to the setting not working.<br><br>
+      <b>Now the part that matters more than the fix.</b> Look at what the same tag reports in three places at once - the Preview header says <b>Fired</b>, the tag's own details say <b>Firing Status: Failed</b>, and the Network tab says something different again. Three sources, three answers, one tag.<br><br>
+      <b>Fired</b> means the trigger matched. It says nothing about whether anything was sent.<br>
+      <b>Failed</b> means the browser could not complete the resource load. It says nothing about whether the platform received the hit - for a pixel, the request usually did leave and the server usually did log it. Only the response came back wrong.<br><br>
+      So <b>Failed is not a verdict, it is a prompt to go and read the Status column</b> - because that is what tells you whose problem it is:<br><br>
+      <b>404</b> - the tag's URL is wrong. Yours to fix.<br>
+      <b>ERR_BLOCKED_BY_CLIENT</b> - your own adblocker. Retest in a clean profile. Not a finding, do not report it.<br>
+      <b>(blocked:csp)</b> - the site's Content-Security-Policy refused the domain. Ask the client to allowlist it. Theirs.<br>
+      <b>ERR_BLOCKED_BY_ORB</b> - the response was not the type that was requested. The hit almost certainly arrived; you simply cannot confirm it from the browser. Verify platform-side.<br>
+      <b>No status, 0.0 kB</b> - killed by navigation. This demo. Wait for Tags. Yours.<br><br>
+      Three of those five send you back to your own container, one goes to the client, and one is not a problem at all. Reporting "the tag failed, tracking is broken" without checking which is how you escalate something that was working.<br><br>
+      <b>One practical note:</b> a killed request does not survive a HAR export - HAR entries require a response, so the log silently drops exactly the thing you are trying to prove. Screenshot it instead.</div></details>
     </div>
 
     <!-- ---------------- DEMO 5 ---------------- -->
@@ -873,21 +881,10 @@ function d3shared(){
 }
 
 /* ---- Demo 4: the tag that loses the race ---- */
-function d4click(e){
-  new Image().src = 'https://postman-echo.com/delay/1?tag=outbound_click&ts=' + Date.now();
-  if (document.getElementById('wait_toggle').checked){
-    e.preventDefault();
-    logTo('d4log','Brochure link clicked - navigation held for 1 second.');
-    setTimeout(function(){ location.href = 'index.html?left=1#lab'; }, 2000);
-    return false;
-  }
-  logTo('d4log','Brochure link clicked - navigating immediately.');
-  return true;
-}
 (function(){
   if (location.search.indexOf('left=1') > -1){
     var n = document.getElementById('d4log');
-    if (n) n.innerHTML = '<span class="hi">You have returned from the navigation. The evidence is in the Network tab - Preserve log must be ticked, and the request to look for goes to postman-echo.</span>';
+    if (n) n.innerHTML = '<span class="hi">You have returned from the navigation. The evidence is in the Network tab - filter by px.gif, with Preserve log ticked.</span>';
   }
 })();
 
