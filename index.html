@@ -318,8 +318,9 @@ details.answer .expect { margin:0 13px 13px; }
 
       <div class="frag">
         <div class="frag-h">Resources</div>
-        <p class="note" style="margin:0 0 8px">Tick <b>Preserve log</b> and set throttling to <b>Slow 4G</b> before clicking, or you will see nothing at all.</p>
-        <a class="act" id="d4link" style="margin-top:10px" href="index.html?left=1#lab">Download the brochure</a>
+        <p class="note" style="margin:0 0 8px">Tick <b>Preserve log</b> and set throttling to <b>Slow 4G</b> or <b>3G</b> before clicking, or you will see nothing at all.</p>
+        <a class="act" id="d4link" style="margin-top:10px" href="index.html?left=1#lab"
+           onclick="this.href='index.html?left='+Date.now()+'#lab'">Download the brochure</a>
       </div>
 
       <div class="log" id="d4log">Nothing clicked yet.</div>
@@ -338,7 +339,8 @@ details.answer .expect { margin:0 13px 13px; }
       <b>ERR_BLOCKED_BY_ORB</b> - the response was not the type that was requested. The hit almost certainly arrived; you simply cannot confirm it from the browser. Verify platform-side.<br>
       <b>No status, 0.0 kB</b> - killed by navigation. This demo. Wait for Tags. Yours.<br><br>
       Three of those five send you back to your own container, one goes to the client, and one is not a problem at all. Reporting "the tag failed, tracking is broken" without checking which is how you escalate something that was working.<br><br>
-      <b>One practical note:</b> a killed request does not survive a HAR export - HAR entries require a response, so the log silently drops exactly the thing you are trying to prove. Screenshot it instead.</div></details>
+      <b>One practical note:</b> a link that goes nowhere fires no unload.</b> Clicking a link to the URL you are already on, fragment and all, is not a navigation - the browser does nothing, so there is no race to lose. This link stamps a fresh timestamp into its own href on every click so each one is a genuine page load. Worth remembering when something "stops firing" on a retest.<br><br>
+      <b>Practical note:</b> a killed request does not survive a HAR export - HAR entries require a response, so the log silently drops exactly the thing you are trying to prove. Screenshot it instead.</div></details>
     </div>
 
     <!-- ---------------- DEMO 5 ---------------- -->
